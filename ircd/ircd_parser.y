@@ -210,7 +210,8 @@ block_items: block_items block_item
            | block_item
            ;
 
-block_item:	string '=' itemlist ';'
+/* used to have a = */
+block_item:	string itemlist ';'
 		{
 			conf_call_set(conf_cur_block, $1, cur_list);
 			free_cur_list(cur_list);

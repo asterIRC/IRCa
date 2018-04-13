@@ -72,6 +72,7 @@ char yy_linebuf[16384];
 ws        [ \t]*
 digit     [0-9]
 comment   #.*
+ppcomment //.*
 qstring   \"[^\"\n]*[\"\n]
 string    [a-zA-Z_\~\:][a-zA-Z0-9_\:]*
 include   \.include{ws}(\<.*\>|\".*\")
@@ -83,6 +84,7 @@ include   \.include{ws}(\<.*\>|\".*\")
 
 {ws}            ;
 {comment}       { hashcomment(); }
+{cppcomment}       { hashcomment(); }
 
 {digit}+        { yylval.number = atoi(yytext); return NUMBER; }
 
