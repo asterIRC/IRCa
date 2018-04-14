@@ -38,7 +38,7 @@
 #include "s_conf.h"
 #include "newconf.h"
 
-#include "ircd_parser.h"
+#include "y.tab.h"
 
 int yylex(void);
 
@@ -52,8 +52,8 @@ void cinclude(void);
 void hashcomment(void);
 int ieof(void);
 int lineno_stack[MAX_INCLUDE_DEPTH];
-char conffile_stack[MAX_INCLUDE_DEPTH][BUFSIZE];
-char conffilebuf[BUFSIZE+1];
+char conffile_stack[MAX_INCLUDE_DEPTH][IRCD_BUFSIZE];
+char conffilebuf[IRCD_BUFSIZE+1];
 char *current_file = conffilebuf;
 
 FILE *inc_fbfile_in[MAX_INCLUDE_DEPTH];
@@ -196,7 +196,7 @@ void cinclude(void)
     if (tmp_fbfile_in == NULL)
     {
       /* if its not found in PREFIX, look in IRCD_PATH_ETC */
-      char fnamebuf[BUFSIZE];
+      char fnamebuf[IRCD_BUFSIZE];
 
       snprintf(fnamebuf, sizeof(fnamebuf), "%s%c%s", ircd_paths[IRCD_PATH_ETC], RB_PATH_SEPARATOR, c);
       tmp_fbfile_in = fopen(fnamebuf, "r");
