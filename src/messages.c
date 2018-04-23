@@ -39,7 +39,7 @@ char *form_str(int number)
 {
 	if (numerics[number] == NULL || 0 == strlen(numerics[number]))
 		return ":This error should NEVER. EVER. Happen. I hope you speak English.";
-	return numerics[number]
+	return numerics[number];
 };
 
 char *vform_str(int number, int variant)
