@@ -262,7 +262,7 @@ isupport_chanlimit(const void *ptr)
 	static char result[176];
 
 	rb_snprintf(result, sizeof result, "%s:%i",
-		ConfigChannel.chnampfx, ConfigChannel.max_chans_per_user);
+		isupport_chantypes(NULL), ConfigChannel.max_chans_per_user);
 	return result;
 }
 
