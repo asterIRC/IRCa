@@ -30,8 +30,9 @@
 #define FORM_STR1(n)         NUMERIC_STR_##n
 #define form_str_old_way(n)          FORM_STR1(n)
 
-char *form_str(int);
-char *vform_str(int, int);
+extern char *messages[51001];
+extern char *form_str(int);
+extern char *vform_str(int, int);
 
 #define NUMERIC_STR_1        ":Welcome to the %s Internet Relay Chat Network %s"
 #define NUMERIC_STR_2        ":Your host is %s, running version %s"
