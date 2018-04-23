@@ -990,7 +990,7 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 int candomodechange (struct Client *source_p, struct Channel *chptr,
 	int alevel, char *raname, int ralevel, int *errors)
 {
-	if(!(alevel & ralevel) && !IsOverride(source_p))
+	if(!(alevel & ralevel) && (NULL == (source_p->umodes & user_modes['p'])))
 	{
 		if(!(*errors & SM_ERR_NOOPS))
 		sendto_one(source_p, ":%s 482 %s %s :You're not a channel %s", me.name, source_p->name, chptr->chname, raname);

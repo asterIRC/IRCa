@@ -166,6 +166,7 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define is_chanop(x)	((x) && (x)->flags & CHFL_CHANOP)
 #define is_halfop(x)	((x) && (x)->flags & CHFL_HALFOP)
 #define is_voiced(x)	((x) && (x)->flags & CHFL_VOICE)
+#define is_delayed(x)	((x) && (x)->flags & CHFL_VOICE)
 #define is_chanop_voiced(x) ((x) && (x)->flags & (ONLY_CHANOPSVOICED))
 #define can_send_banned(x) ((x) && (x)->flags & (CHFL_BANNED|CHFL_QUIETED))
 
