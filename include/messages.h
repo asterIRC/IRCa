@@ -30,7 +30,7 @@
 #define FORM_STR1(n)         NUMERIC_STR_##n
 #define form_str_old_way(n)          FORM_STR1(n)
 
-extern char *messages[51001];
+extern char * messages [];
 extern char *form_str(int);
 extern char *vform_str(int, int);
 
