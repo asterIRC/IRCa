@@ -251,8 +251,8 @@ isupport_chantypes(const void *ptr)
 	rb_snprintf(result, sizeof result, "%s%s",
 		ConfigChannel.disable_local_channels ? "" : ConfigChannel.chnampfxlocal, ConfigChannel.chnampfxglobal);
 
-	rb_snprintf(ConfigChannel.chnampfx, sizeof ConfigChannel.chnampfx, "%s%s",
-		ConfigChannel.disable_local_channels ? "" : ConfigChannel.chnampfxlocal, ConfigChannel.chnampfxglobal);
+	//rb_snprintf(ConfigChannel.chnampfx, sizeof ConfigChannel.chnampfx, "%s%s",
+	//	ConfigChannel.disable_local_channels ? "" : ConfigChannel.chnampfxlocal, ConfigChannel.chnampfxglobal);
 	return result;
 }
 
