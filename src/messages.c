@@ -34,9 +34,6 @@
 
 // here's the rules: up to 50 variants, first ten are internal, 11-50 are language banks.
 
-char (*numerics)[51001];
-
-numerics[51000] = NULL;
 
 char *form_str(int number)
 {
@@ -49,6 +46,10 @@ char *vform_str(int number, int variant)
 {
 	return form_str((variant*1000)+number);
 };
+
+void prepare_numerics(void) {
+
+numerics[51000] = NULL;
 
 numerics[1] = ":Welcome to the %s Internet Relay Chat Network %s";
 numerics[2] = ":Your host is %s, running version %s";
@@ -284,3 +285,4 @@ numerics[905] = ":%s 905 %s :SASL message too long";
 numerics[906] = ":%s 906 %s :SASL authentication aborted";
 numerics[907] = ":%s 907 %s :You have already completed SASL authentication";
 numerics[908] = ":%s 908 %s %s :are available SASL mechanisms";
+}
