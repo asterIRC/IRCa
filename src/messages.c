@@ -30,10 +30,11 @@
 #include "substitution.h"
 #include "chmode.h"
 #include "s_assert.h"
+#include "messages.h"
 
 // here's the rules: up to 50 variants, first ten are internal, 11-50 are language banks.
 
-char *numerics[51001];
+char (*numerics)[51001];
 
 numerics[51000] = NULL;
 
