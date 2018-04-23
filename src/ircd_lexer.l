@@ -32,6 +32,8 @@
 #define WE_ARE_MEMORY_C
 
 #include "stdinc.h"
+#include "common.h"
+#include "config.h"
 #include "ircd_defs.h"
 #include "defaults.h"
 #include "logger.h"
@@ -202,7 +204,7 @@ void cinclude(void)
       /* if its not found in PREFIX, look in IRCD_PATH_ETC */
       char fnamebuf[IRCD_BUFSIZE];
 
-      snprintf(fnamebuf, sizeof(fnamebuf), "%s%c%s", ircd_paths[IRCD_PATH_ETC], RB_PATH_SEPARATOR, c);
+      snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", ETCPATH, c);
       tmp_fbfile_in = fopen(fnamebuf, "r");
 
       /* wasnt found there either.. error. */
@@ -257,6 +259,6 @@ void hashcomment(void)
   if (strlen(yytext) < sizeof(INCLUDE) - 1)
     return;
 
-  if (!rb_strncasecmp(yytext, INCLUDE, sizeof(INCLUDE) - 1))
+  if (!strncasecmp(yytext, INCLUDE, sizeof(INCLUDE) - 1))
       yyerror("You probably meant '.include', skipping");
 }
