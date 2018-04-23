@@ -34,6 +34,7 @@
 
 // here's the rules: up to 50 variants, first ten are internal, 11-50 are language banks.
 
+char * numerics [51001];
 
 char *form_str(int number)
 {
