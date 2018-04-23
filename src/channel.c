@@ -218,7 +218,7 @@ find_channel_status(struct membership *mp, int combine)
 	// and now I only need to waste all but the first
 	// character for my return value if we aren't combining.
 	// -- reinhilde malik
-	rb_snprintf(buffer, sizeof buffer, "%s%s%s%s%s%s"
+	rb_snprintf(buffer, sizeof(buffer), "%s%s%s%s%s%s",
 		is_operbiz(mp) ? Cc->operprefix : "",
 		is_manager(mp) ? Cc->qprefix : "",
 		is_superop(mp) ? Cc->aprefix : "",
