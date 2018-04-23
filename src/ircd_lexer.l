@@ -74,8 +74,10 @@ digit     [0-9]
 comment   #.*
 ppcomment \/\/.*
 qstring   \"[^\"\n]*[\"\n]
-string    [a-zA-Z_\~\:][a-zA-Z0-9_\:]*
+string    [a-zA-Z_\~\:\-][a-zA-Z0-9_\:\-]*
 include   \.include{ws}(\<.*\>|\".*\")
+optional_equals [ =]+
+optional_comma [ ,]?
 
 %%
 {include}       { cinclude(); }
@@ -142,6 +144,8 @@ loadmodule	{ return LOADMODULE; }
                 }
 
 \.\.		{ return TWODOTS; }
+\-\>		{ return TWODOTS; }
+\-\-		{ return TWODOTS; }
 .               { return yytext[0]; }
 <<EOF>>         { if (ieof()) yyterminate(); }
 %%

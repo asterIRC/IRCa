@@ -85,6 +85,7 @@ struct User
 	int refcnt;		/* Number of times this block is referenced */
 
 	char suser[NICKLEN+1];
+	char *opername; /* name of operator{} block being used or tried (challenge) */
 };
 
 struct Server
@@ -123,6 +124,8 @@ struct Client
 	unsigned int flags;	/* client flags */
 	unsigned int flags2;	/* ugh. overflow */
 
+	unsigned int operflags;	/* Oper flags. */
+
 	unsigned int snomask;	/* server notice mask */
 
 	int hopcount;		/* number of servers to this 0 = local */
@@ -133,14 +136,16 @@ struct Client
 	/* client->name is the unique name for a client nick or host */
 	char name[HOSTLEN + 1];
 
-	/*
-	 * client->username is the username from ident or the USER message,
-	 * If the client is idented the USER message is ignored, otherwise
-	 * the username part of the USER message is put here prefixed with a
+	/* 
+	 * client->username is the username from ident or the USER message, 
+	 * If the client is idented the USER message is ignored, otherwise 
+	 * the username part of the USER message is put here prefixed with a 
 	 * tilde depending on the I:line, Once a client has registered, this
 	 * field should be considered read-only.
 	 */
 	char username[USERLEN + 1];	/* client's username */
+	char userusername[USERLEN + 1];	/* from USER only! client's username */
+	char origusername[USERLEN + 1];	/* original, before dynspoofing if ever implemented client's username */
 
 	/*
 	 * client->host contains the resolved name or ip address
@@ -167,6 +172,8 @@ struct Client
 
 	time_t large_ctcp_sent; /* ctcp to large group sent, relax flood checks */
 	char *certfp; /* client certificate fingerprint */
+
+	struct Dictionary *metadata;
 };
 
 struct LocalUser
@@ -177,13 +184,13 @@ struct LocalUser
 	 * (directly connected to *this* server with a socket.
 	 */
 	/* Anti flooding part, all because of lamers... */
-	time_t last_join_time;	/* when this client last
+	time_t last_join_time;	/* when this client last 
 				   joined a channel */
-	time_t last_leave_time;	/* when this client last
+	time_t last_leave_time;	/* when this client last 
 				 * left a channel */
-	int join_leave_count;	/* count of JOIN/LEAVE in less than
+	int join_leave_count;	/* count of JOIN/LEAVE in less than 
 				   MIN_JOIN_LEAVE_TIME seconds */
-	int oper_warn_count_down;	/* warn opers of this possible
+	int oper_warn_count_down;	/* warn opers of this possible 
 					   spambot every time this gets to 0 */
 	time_t last_caller_id_time;
 
@@ -197,10 +204,10 @@ struct LocalUser
 	 * we want to use unsigned int here so the sizes have a better chance of
 	 * staying the same on 64 bit machines. The current trend is to use
 	 * I32LP64, (32 bit ints, 64 bit longs and pointers) and since ircd
-	 * will NEVER run on an operating system where ints are less than 32 bits,
+	 * will NEVER run on an operating system where ints are less than 32 bits, 
 	 * it's a relatively safe bet to use ints. Since right shift operations are
-	 * performed on these, it's not safe to allow them to become negative,
-	 * which is possible for long running server connections. Unsigned values
+	 * performed on these, it's not safe to allow them to become negative, 
+	 * which is possible for long running server connections. Unsigned values 
 	 * generally overflow gracefully. --Bleep
 	 */
 	unsigned int sendM;	/* Statistics: protocol messages send */
@@ -225,10 +232,8 @@ struct LocalUser
 	 */
 	char *passwd;
 	char *auth_user;
-	char *opername; /* name of operator{} block being used or tried (challenge) */
 	char *challenge;
 	char *fullcaps;
-	char *cipher_string;
 
 	int caps;		/* capabilities bit-field */
 	rb_fde_t *F;		/* >= 0, for local clients */
@@ -238,9 +243,8 @@ struct LocalUser
 
 	struct DNSQuery *dnsquery; /* for outgoing server's name lookup */
 
-	time_t next_away;	/* Don't allow next away before... */
+	time_t last_away;	/* Away since... */
 	time_t last;
-	uint32_t connid;
 
 	/* clients allowed to talk through +g */
 	rb_dlink_list allow_list;
@@ -254,7 +258,10 @@ struct LocalUser
 	 * to avoid flooding.
 	 *   -- adrian
 	 */
+	int allow_read;		/* how many we're allowed to read in this second */
+	int actually_read;	/* how many we've actually read in this second */
 	int sent_parsed;	/* how many messages we've parsed in this second */
+	int flood_multiplier;	/* how much more leniency we are giving them than we normally would */
 	time_t last_knock;	/* time of last knock */
 	unsigned long random_ping;
 	struct AuthRequest *auth_request;
@@ -268,10 +275,6 @@ struct LocalUser
 	unsigned int targets_free;	/* free targets */
 	time_t target_last;		/* last time we cleared a slot */
 
-	/* ratelimit items */
-	time_t ratelimit;
-	unsigned int join_who_credits;
-
 	struct ListClient *safelist_data;
 
 	char *mangledhost; /* non-NULL if host mangling module loaded and
@@ -279,7 +282,6 @@ struct LocalUser
 
 	struct _ssl_ctl *ssl_ctl;		/* which ssl daemon we're associate with */
 	struct _ssl_ctl *z_ctl;			/* second ctl for ssl+zlib */
-	uint32_t zconnid;
 	uint32_t localflags;
 	struct ZipStats *zipstats;		/* zipstats */
 	uint16_t cork_count;			/* used for corking/uncorking connections */
@@ -287,9 +289,7 @@ struct LocalUser
 
 	struct PrivilegeSet *privset;		/* privset... */
 
-	char sasl_agent[IDLEN];
-	unsigned char sasl_out;
-	unsigned char sasl_complete;
+	struct ev_entry *override_timeout_event;
 };
 
 struct PreClient
@@ -297,6 +297,10 @@ struct PreClient
 	char spoofnick[NICKLEN + 1];
 	char spoofuser[USERLEN + 1];
 	char spoofhost[HOSTLEN + 1];
+
+	char sasl_agent[IDLEN];
+	unsigned char sasl_out;
+	unsigned char sasl_complete;
 
 	rb_dlink_list dnsbl_queries; /* list of struct BlacklistClient * */
 	struct Blacklist *dnsbl_listed; /* first dnsbl where it's listed */
@@ -335,9 +339,6 @@ struct ListClient
 #define IsReject(x)		((x)->status == STAT_REJECT)
 
 #define IsAnyServer(x)          (IsServer(x) || IsHandshake(x) || IsConnecting(x))
-
-#define IsOper(x)		((x)->umodes & UMODE_OPER)
-#define IsAdmin(x)		((x)->umodes & UMODE_ADMIN)
 
 #define SetReject(x)		{(x)->status = STAT_REJECT; \
 				 (x)->handler = UNREGISTERED_HANDLER; }
@@ -406,12 +407,13 @@ struct ListClient
 #define FLAGS_SERVICE	   0x200000	/* network service */
 #define FLAGS_TGCHANGE     0x400000	/* we're allowed to clear something */
 #define FLAGS_DYNSPOOF     0x800000	/* dynamic spoof, only opers see ip */
-#define FLAGS_TGEXCESSIVE  0x1000000	/* whether the client has attemped to change targets excessively fast */
+#define FLAGS_IDMSG        0x2000000	/* Marked as 'identified' for identify-msg purposes */
 
 /* flags for local clients, this needs stuff moved from above to here at some point */
 #define LFLAGS_SSL		0x00000001
 #define LFLAGS_FLUSH		0x00000002
 #define LFLAGS_CORK		0x00000004
+#define LFLAGS_SCTP		0x00000008
 
 /* umodes, settable flags */
 /* lots of this moved to snomask -- jilles */
@@ -425,37 +427,56 @@ struct ListClient
 #define UMODE_DEAF	   0x0080
 #define UMODE_NOFORWARD    0x0100	/* don't forward */
 #define UMODE_REGONLYMSG   0x0200	/* only allow logged in users to msg */
-#define UMODE_CALLERIDXCC  0x0400	/* caller ID, except common channels. */
+#define UMODE_HELPOP	   0x0400	/* show in stats p */
 
 /* user information flags, only settable by remote mode or local oper */
 #define UMODE_OPER         0x1000	/* Operator */
 #define UMODE_ADMIN        0x2000	/* Admin on server */
-#define UMODE_SSLCLIENT    0x4000	/* using SSL */
-#define UMODE_SCTPCLIENT   0x8000	/* using SCTP */
+#define UMODE_HELPER       0x4000	/* Helper */
+#define UMODE_SSLCLIENT    0x8000	/* using SSL */
+#define UMODE_OVERRIDE     0x20000
+#define UMODE_NETADMIN     0x40000
+#define UMODE_REGISTERED   0x80000	/* is regged with nick-style services (uses METADATA NICKTS rather than SU) */
+#define UMODE_SCTPCLIENT   0x100000	/* using SCTP (may be combined with SSLCLIENT if using SSL over SCTP) */
+
+/* oper-controlled privilege umodes. */
+
+/* umode/oper mode macros */
+#define IsOper(x)		((x)->umodes & UMODE_OPER)
+#define IsAdmin(x)		((x)->umodes & UMODE_ADMIN)
+#define IsNetAdmin(x)		((x)->umodes & UMODE_NETADMIN)
+#define IsHelper(x)		((x)->umodes & UMODE_HELPER)
+#define IsAnyOper(x)		((x)->umodes & (UMODE_OPER|UMODE_HELPER))
+
+#define IsOverride(x)		((x)->umodes & UMODE_OVERRIDE)
+
+/* Is t an oper, and is s allowed to know this? */
+#define SeesOpers(s)		(IsOper(s) || !ConfigFileEntry.operhide)
+#define SeesOper(s, t)		(SeesOpers(s) || ((s) == (t)))
+#define SeesHelper(s, t)	(SeesOpers(s) || ((s) == (t)))
+#define SeesAnyOper(s, t)	(SeesOpers(s) || ((s) == (t)))
+
 
 /* overflow flags */
 /* EARLIER FLAGS ARE IN s_newconf.h */
-#define FLAGS2_EXEMPTRESV	0x00400000
-#define FLAGS2_EXEMPTKLINE      0x00800000
-#define FLAGS2_EXEMPTFLOOD      0x01000000
-#define FLAGS2_IP_SPOOFING      0x10000000
-#define FLAGS2_EXEMPTSPAMBOT	0x20000000
-#define FLAGS2_EXEMPTSHIDE	0x40000000
-#define FLAGS2_EXEMPTJUPE	0x80000000
+#define FLAGS2_EXEMPTRESV	0x001
+#define FLAGS2_EXEMPTKLINE      0x002
+#define FLAGS2_EXEMPTFLOOD      0x004
+#define FLAGS2_IP_SPOOFING      0x008
+#define FLAGS2_EXEMPTSPAMBOT	0x010
+#define FLAGS2_EXEMPTSHIDE	0x020
+#define FLAGS2_EXEMPTJUPE	0x040
+#define FLAGS2_EXTENDCHANS	0x080
 
 #define DEFAULT_OPER_UMODES (UMODE_SERVNOTICE | UMODE_OPERWALL | \
                              UMODE_WALLOP | UMODE_LOCOPS)
 #define DEFAULT_OPER_SNOMASK SNO_GENERAL
 
-#define CLICAP_MULTI_PREFIX		0x0001
-#define CLICAP_SASL			0x0002
-#define CLICAP_ACCOUNT_NOTIFY		0x0004
-#define CLICAP_EXTENDED_JOIN		0x0008
-#define CLICAP_AWAY_NOTIFY		0x0010
-#define CLICAP_TLS			0x0020
-#define CLICAP_USERHOST_IN_NAMES	0x0040
-#define CLICAP_CAP_NOTIFY		0x0080
-#define CLICAP_CHGHOST			0x0100
+#define CLICAP_MULTI_PREFIX	0x0001
+#define CLICAP_SASL		0x0002
+#define CLICAP_IDENTIFY_MSG	0x0004
+#define CLICAP_ACCOUNT_NOTIFY	0x0008
+#define CLICAP_EXTENDED_JOIN	0x0010
 
 /*
  * flags macros.
@@ -466,6 +487,9 @@ struct ListClient
 #define MyConnect(x)		((x)->flags & FLAGS_MYCONNECT)
 #define SetMyConnect(x)		((x)->flags |= FLAGS_MYCONNECT)
 #define ClearMyConnect(x)	((x)->flags &= ~FLAGS_MYCONNECT)
+
+// and a function because lulz
+extern int IsXAscii(struct Client *client_p);
 
 #define MyClient(x)             (MyConnect(x) && IsClient(x))
 #define SetMark(x)		((x)->flags |= FLAGS_MARK)
@@ -490,15 +514,19 @@ struct ListClient
 #define IsDynSpoof(x)		((x)->flags & FLAGS_DYNSPOOF)
 #define SetDynSpoof(x)		((x)->flags |= FLAGS_DYNSPOOF)
 #define ClearDynSpoof(x)	((x)->flags &= ~FLAGS_DYNSPOOF)
-#define IsTGExcessive(x)	((x)->flags & FLAGS_TGEXCESSIVE)
-#define SetTGExcessive(x)	((x)->flags |= FLAGS_TGEXCESSIVE)
-#define ClearTGExcessive(x)	((x)->flags &= ~FLAGS_TGEXCESSIVE)
+#define IsIdentifiedMsg(x)	((x)->flags & FLAGS_IDMSG || IsService(x))
+#define SetIdentifiedMsg(x)	((x)->flags |= FLAGS_IDMSG)
+#define ClearIdentifiedMsg(x)	((x)->flags &= ~FLAGS_IDMSG)
 
 /* local flags */
 
 #define IsSSL(x)		((x)->localClient->localflags & LFLAGS_SSL)
 #define SetSSL(x)		((x)->localClient->localflags |= LFLAGS_SSL)
 #define ClearSSL(x)		((x)->localClient->localflags &= ~LFLAGS_SSL)
+
+#define IsSCTP(x)		((x)->localClient->localflags & LFLAGS_SCTP)
+#define SetSCTP(x)		((x)->localClient->localflags |= LFLAGS_SCTP)
+#define ClearSCTP(x)		((x)->localClient->localflags &= ~LFLAGS_SCTP)
 
 #define IsFlush(x)		((x)->localClient->localflags & LFLAGS_FLUSH)
 #define SetFlush(x)		((x)->localClient->localflags |= LFLAGS_FLUSH)
@@ -510,9 +538,12 @@ struct ListClient
 #define SetOper(x)              {(x)->umodes |= UMODE_OPER; \
 				 if (MyClient((x))) (x)->handler = OPER_HANDLER;}
 
-#define ClearOper(x)            {(x)->umodes &= ~(UMODE_OPER|UMODE_ADMIN); \
+#define ClearOper(x)            {(x)->umodes &= ~(UMODE_OPER|UMODE_ADMIN|UMODE_NETADMIN); \
 				 if (MyClient((x)) && !IsOper((x)) && !IsServer((x))) \
 				  (x)->handler = CLIENT_HANDLER; }
+
+#define SetHelper(x)		(x)->umodes |= UMODE_HELPER
+#define ClearHelper(x)		(x)->umodes &= ~UMODE_HELPER
 
 /* umode flags */
 #define IsInvisible(x)          ((x)->umodes & UMODE_INVISIBLE)
@@ -521,9 +552,6 @@ struct ListClient
 #define IsSSLClient(x)		((x)->umodes & UMODE_SSLCLIENT)
 #define SetSSLClient(x)		((x)->umodes |= UMODE_SSLCLIENT)
 #define ClearSSLClient(x)	((x)->umodes &= ~UMODE_SSLCLIENT)
-#define IsSCTPClient(x)		((x)->umodes & UMODE_SSLCLIENT)
-#define SetSCTPClient(x)	((x)->umodes |= UMODE_SCTPCLIENT)
-#define ClearSCTPClient(x)	((x)->umodes &= ~UMODE_SCTPCLIENT)
 #define SendWallops(x)          ((x)->umodes & UMODE_WALLOP)
 #define SendLocops(x)           ((x)->umodes & UMODE_LOCOPS)
 #define SendServNotice(x)       ((x)->umodes & UMODE_SERVNOTICE)
@@ -533,6 +561,8 @@ struct ListClient
 #define IsDeaf(x)		((x)->umodes & UMODE_DEAF)
 #define IsNoForward(x)		((x)->umodes & UMODE_NOFORWARD)
 #define IsSetRegOnlyMsg(x)	((x)->umodes & UMODE_REGONLYMSG)
+
+#define IsHelpOp(x)		((x)->umodes & UMODE_HELPOP)
 
 #define SetGotId(x)             ((x)->flags |= FLAGS_GOTID)
 #define IsGotId(x)              (((x)->flags & FLAGS_GOTID) != 0)
@@ -554,6 +584,9 @@ struct ListClient
 #define SetExemptResv(x)	((x)->flags2 |= FLAGS2_EXEMPTRESV)
 #define IsIPSpoof(x)            ((x)->flags2 & FLAGS2_IP_SPOOFING)
 #define SetIPSpoof(x)           ((x)->flags2 |= FLAGS2_IP_SPOOFING)
+
+#define IsExtendChans(x)	((x)->flags2 & FLAGS2_EXTENDCHANS)
+#define SetExtendChans(x)	((x)->flags2 |= FLAGS2_EXTENDCHANS)
 
 /* for local users: flood grace period is over
  * for servers: mentioned in networknotice.c notice
@@ -578,7 +611,6 @@ extern void check_klines_event(void *unused);
 extern void check_klines(void);
 extern void check_dlines(void);
 extern void check_xlines(void);
-extern void resv_nick_fnc(const char *mask, const char *reason, int temp_time);
 
 extern const char *get_client_name(struct Client *client, int show_ip);
 extern const char *log_client_name(struct Client *, int);
@@ -586,6 +618,7 @@ extern int is_remote_connect(struct Client *);
 extern void init_client(void);
 extern struct Client *make_client(struct Client *from);
 extern void free_pre_client(struct Client *client);
+extern void free_client(struct Client *client);
 
 extern int exit_client(struct Client *, struct Client *, struct Client *, const char *);
 
@@ -595,8 +628,6 @@ extern void error_exit_client(struct Client *, int);
 
 extern void count_local_client_memory(size_t * count, size_t * memory);
 extern void count_remote_client_memory(size_t * count, size_t * memory);
-
-extern int clean_nick(const char *, int loc_client);
 
 extern struct Client *find_chasing(struct Client *, const char *, int *);
 extern struct Client *find_person(const char *);
@@ -608,8 +639,7 @@ extern void del_all_accepts(struct Client *client_p);
 
 extern void dead_link(struct Client *client_p, int sendqex);
 extern int show_ip(struct Client *source_p, struct Client *target_p);
-extern int show_ip_conf(struct ConfItem *aconf, struct Client *source_p);
-extern int show_ip_whowas(struct Whowas *whowas, struct Client *source_p);
+extern int show_ip_conf(struct ConfItem *aconf, struct Client *target_p);
 
 extern void initUser(void);
 extern void free_user(struct User *, struct Client *);
@@ -621,5 +651,10 @@ extern char *generate_uid(void);
 
 void allocate_away(struct Client *);
 void free_away(struct Client *);
+
+extern struct Metadata *user_metadata_add(struct Client *target, const char *name, const char *value, int propegate);
+extern void user_metadata_delete(struct Client *target, const char *name, int propegate);
+extern struct Metadata *user_metadata_find(struct Client *target, const char *name);
+extern void user_metadata_clear(struct Client *target);
 
 #endif /* INCLUDED_client_h */

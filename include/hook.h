@@ -123,6 +123,10 @@ typedef struct
 	struct Channel *chptr;
 	const char *text;
 	int approved;
+	struct {
+		char mode[2]; //waste here is more efficient elsewhere
+		char *reasoning; // this is what our err is
+	} whynot;
 } hook_data_privmsg_channel;
 
 typedef struct
@@ -132,6 +136,11 @@ typedef struct
 	struct Client *target_p;
 	const char *text;
 	int approved;
+	struct {
+		char mode[2]; //waste here is more efficient elsewhere
+		char *umode; // this is what our err is
+		char *targnotify; // informed.
+	} whynot;
 } hook_data_privmsg_user;
 
 #endif

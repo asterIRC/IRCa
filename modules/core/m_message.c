@@ -722,10 +722,11 @@ msg_client(enum message_type msgtype,
 	if(MyClient(source_p))
 	{
 		/*
-		 * XXX: Controversial? Allow target users to send replies
+		 * YYY: Controversial? Allow target users to send replies
 		 * through a +g.  Rationale is that people can presently use +g
 		 * as a way to taunt users, e.g. harass them and hide behind +g
 		 * as a way of griefing.  --nenolod
+		 * Resolved by ellenor@umbrellix.net as not controversial.
 		 */
 		if(msgtype != MESSAGE_TYPE_NOTICE &&
 				(IsSetCallerId(source_p) ||
@@ -805,7 +806,7 @@ msg_client(enum message_type msgtype,
 		/* buffer location may have changed. */
 		text = hdata.text;
 
-		if (hdata.approved != 0)
+		if (hdata.approved != 0 && hdata.approved != UMODE_CALLERID)
 			return;
 
 		if (EmptyString(text))
@@ -819,10 +820,11 @@ msg_client(enum message_type msgtype,
 
 		/* XXX Controversial? allow opers always to send through a +g */
 		if(!IsServer(source_p) && (IsSetCallerId(target_p) ||
-					(IsSetRegOnlyMsg(target_p) && !source_p->user->suser[0])))
+					(IsSetRegOnlyMsg(target_p) && !source_p->user->suser[0])) ||
+		   (hdata.approved == UMODE_CALLERID))
 		{
 			/* Here is the anti-flood bot/spambot code -db */
-			if(accept_message(source_p, target_p) || IsOper(source_p))
+			if(accept_message(source_p, target_p))
 			{
 				add_reply_target(target_p, source_p);
 				sendto_one(target_p, ":%s!%s@%s %s %s :%s",

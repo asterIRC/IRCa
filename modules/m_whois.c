@@ -61,11 +61,15 @@ struct Message whois_msgtab = {
 int doing_whois_hook;
 int doing_whois_global_hook;
 int doing_whois_channel_visibility_hook;
+int upper_doing_whois_hook;
+int upper_doing_whois_global_hook;
 
 mapi_clist_av1 whois_clist[] = { &whois_msgtab, NULL };
 mapi_hlist_av1 whois_hlist[] = {
 	{ "doing_whois",			&doing_whois_hook },
 	{ "doing_whois_global",			&doing_whois_global_hook },
+	{ "upper_doing_whois",			&upper_doing_whois_hook },
+	{ "upper_doing_whois_global",		&upper_doing_whois_global_hook },
 	{ "doing_whois_channel_visibility",	&doing_whois_channel_visibility_hook },
 	{ NULL, NULL }
 };
@@ -296,8 +300,9 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 					t = buf + mlen;
 				}
 
-				tlen = rb_sprintf(t, "%s%s%s ",
+				tlen = rb_sprintf(t, "%s%s%s%s ",
 						hdata.approved ? "" : "!",
+						is_delayed(msptr),
 						find_channel_status(msptr, 1),
 						chptr->chname);
 				t += tlen;
@@ -334,6 +339,18 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
 				   target_p->name, obuf);
 	}
+
+
+	/* doing_whois_hook must only be called for local clients,
+	 * doing_whois_global_hook must only be called for local targets
+	 */
+	/* it is important that these are called *before* RPL_ENDOFWHOIS is
+	 * sent, services compatibility code depends on it. --anfl
+	 */
+	if(MyClient(source_p))
+		call_hook(upper_doing_whois_hook, &hdata);
+	else
+		call_hook(upper_doing_whois_global_hook, &hdata);
 
 	if(IsSSLClient(target_p))
 	{

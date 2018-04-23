@@ -1,6 +1,7 @@
 /*
  * Treat cmode +-R as +-q $~a.
  * -- jilles
+ * now +U for unidentified - better than taking it out altogether i guess?!
  */
 
 #include "stdinc.h"
@@ -21,8 +22,8 @@ DECLARE_MODULE_AV1(chm_quietunreg_compat, _modinit, _moddeinit, NULL, NULL, NULL
 static int
 _modinit(void)
 {
-	chmode_table['R'].set_func = chm_quietunreg;
-	chmode_table['R'].mode_type = 0;
+	chmode_table['U'].set_func = chm_quietunreg;
+	chmode_table['U'].mode_type = 0;
 
 	return 0;
 }
@@ -30,8 +31,8 @@ _modinit(void)
 static void
 _moddeinit(void)
 {
-	chmode_table['R'].set_func = chm_nosuch;
-	chmode_table['R'].mode_type = 0;
+	chmode_table['U'].set_func = chm_nosuch;
+	chmode_table['U'].mode_type = 0;
 }
 
 static void

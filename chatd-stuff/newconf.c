@@ -29,14 +29,11 @@
 #include "blacklist.h"
 #include "sslproc.h"
 #include "privilege.h"
-#include "chmode.h"
 
 #define CF_TYPE(x) ((x) & CF_MTYPE)
 
-static int yy_defer_accept = 1;
-
 struct TopConf *conf_cur_block;
-static char *conf_cur_block_name = NULL;
+static char *conf_cur_block_name;
 
 static rb_dlink_list conf_items;
 
@@ -57,16 +54,12 @@ static struct alias_entry *yy_alias = NULL;
 
 static char *yy_blacklist_host = NULL;
 static char *yy_blacklist_reason = NULL;
-static int yy_blacklist_ipv4 = 1;
-static int yy_blacklist_ipv6 = 0;
-static rb_dlink_list yy_blacklist_filters;
-
 static char *yy_privset_extends = NULL;
 
 static const char *
 conf_strtype(int type)
 {
-	switch (CF_TYPE(type))
+	switch (type & CF_MTYPE)
 	{
 	case CF_INT:
 		return "integer value";
@@ -84,7 +77,7 @@ conf_strtype(int type)
 }
 
 int
-add_top_conf(const char *name, int (*sfunc) (struct TopConf *),
+add_top_conf(const char *name, int (*sfunc) (struct TopConf *), 
 		int (*efunc) (struct TopConf *), struct ConfEntry *items)
 {
 	struct TopConf *tc;
@@ -265,25 +258,6 @@ conf_set_serverinfo_vhost6(void *data)
 }
 
 static void
-conf_set_serverinfo_nicklen(void *data)
-{
-	ConfigFileEntry.nicklen = (*(unsigned int *) data) + 1;
-
-	if (ConfigFileEntry.nicklen > NICKLEN)
-	{
-		conf_report_error("Warning -- ignoring serverinfo::nicklen -- provided nicklen (%u) is greater than allowed nicklen (%u)",
-				  ConfigFileEntry.nicklen - 1, NICKLEN - 1);
-		ConfigFileEntry.nicklen = NICKLEN;
-	}
-	else if (ConfigFileEntry.nicklen < 9 + 1)
-	{
-		conf_report_error("Warning -- serverinfo::nicklen is too low (%u) -- forcing 9",
-				  ConfigFileEntry.nicklen - 1);
-		ConfigFileEntry.nicklen = 9 + 1;
-	}
-}
-
-static void
 conf_set_modules_module(void *data)
 {
 #ifndef STATIC_MODULES
@@ -291,8 +265,10 @@ conf_set_modules_module(void *data)
 
 	m_bn = rb_basename((char *) data);
 
-	if(findmodule_byname(m_bn) == -1)
-		load_one_module((char *) data, 0);
+	if(findmodule_byname(m_bn) != -1)
+		return;
+
+	load_one_module((char *) data, 0);
 
 	rb_free(m_bn);
 #else
@@ -310,12 +286,6 @@ conf_set_modules_path(void *data)
 #endif
 }
 
-struct mode_table
-{
-	const char *name;
-	int mode;
-};
-
 /* *INDENT-OFF* */
 static struct mode_table umode_table[] = {
 	{"callerid",	UMODE_CALLERID	},
@@ -326,7 +296,9 @@ static struct mode_table umode_table[] = {
 	{"regonlymsg",	UMODE_REGONLYMSG},
 	{"servnotice",	UMODE_SERVNOTICE},
 	{"wallop",	UMODE_WALLOP	},
+	{"helpop",	UMODE_HELPOP	},
 	{"operwall",	UMODE_OPERWALL	},
+	{"override",	UMODE_OVERRIDE	},
 	{NULL, 0}
 };
 
@@ -352,6 +324,8 @@ static struct mode_table auth_table[] = {
 	{"have_ident",		CONF_FLAGS_NEED_IDENTD	},
 	{"need_ssl", 		CONF_FLAGS_NEED_SSL	},
 	{"need_sasl",		CONF_FLAGS_NEED_SASL	},
+	{"extend_chans",	CONF_FLAGS_EXTEND_CHANS },
+	{"use_user_ident",	CONF_FLAGS_USE_USER_IDENT },
 	{NULL, 0}
 };
 
@@ -361,6 +335,7 @@ static struct mode_table connect_table[] = {
 	{ "encrypted",	SERVER_ENCRYPTED	},
 	{ "topicburst",	SERVER_TB		},
 	{ "ssl",	SERVER_SSL		},
+	{ "sctp",	SERVER_SCTP		},
 	{ NULL,		0			},
 };
 
@@ -396,6 +371,9 @@ static struct mode_table shared_table[] =
 	{ "unresv",	SHARED_UNRESV	},
 	{ "locops",	SHARED_LOCOPS	},
 	{ "rehash",	SHARED_REHASH	},
+	{ "grant",	SHARED_GRANT	},
+	{ "die",	SHARED_DIE	},
+	{ "modules",	SHARED_MODULE	},
 	{ "all",	SHARED_ALL	},
 	{ "none",	0		},
 	{NULL, 0}
@@ -415,7 +393,6 @@ find_umode(struct mode_table *tab, const char *name)
 
 	return -1;
 }
-
 
 static int
 umode_from_gtables(const char *name)
@@ -484,7 +461,7 @@ set_modes_from_table(int *modes, const char *whatis, struct mode_table *tab, con
 		int dir = 1;
 		int mode;
 
-		if(CF_TYPE(args->type) != CF_STRING)
+		if((args->type & CF_MTYPE) != CF_STRING)
 		{
 			conf_report_error("Warning -- %s is not a string; ignoring.", whatis);
 			continue;
@@ -522,6 +499,30 @@ static void
 conf_set_privset_extends(void *data)
 {
 	yy_privset_extends = rb_strdup((char *) data);
+}
+
+static void
+conf_set_qpfx(void *data)
+{
+	ConfigChannel.qprefix = rb_strdup((char *) data);
+}
+
+static void
+conf_set_mpfx(void *data)
+{
+	ConfigChannel.mprefix = rb_strdup((char *) data);
+}
+
+static void
+conf_set_apfx(void *data)
+{
+	ConfigChannel.aprefix = rb_strdup((char *) data);
+}
+
+static void
+conf_set_hpfx(void *data)
+{
+	ConfigChannel.hprefix = rb_strdup((char *) data);
 }
 
 static void
@@ -591,6 +592,7 @@ conf_begin_oper(struct TopConf *tc)
 	}
 
 	yy_oper = make_oper_conf();
+	yy_oper->flood_multiplier = -1; // keep user multiplier
 	yy_oper->flags |= OPER_ENCRYPTED;
 
 	return 0;
@@ -651,6 +653,27 @@ conf_end_oper(struct TopConf *tc)
 		yy_tmpoper->snomask = yy_oper->snomask;
 		yy_tmpoper->privset = yy_oper->privset;
 
+		if(!EmptyString(yy_oper->vhost)) {
+			if(valid_hostname(yy_oper->vhost))
+				yy_tmpoper->vhost = rb_strdup(yy_oper->vhost);
+			else if(!EmptyString(yy_oper->vhost))
+				conf_report_error("Ignoring vhost setting for oper %s -- invalid hostmask.", yy_oper->name);
+		}
+
+		if(!EmptyString(yy_oper->swhois)) {
+			if(strlen(yy_oper->swhois)<400)
+				yy_tmpoper->swhois = rb_strdup(yy_oper->swhois);
+			else if(!EmptyString(yy_oper->swhois))
+				conf_report_error("Ignoring swhois setting for oper %s -- swhois too long.", yy_oper->name);
+		}
+
+		if(!EmptyString(yy_oper->operstring)) {
+			if(strlen(yy_oper->operstring)<400)
+				yy_tmpoper->operstring = rb_strdup(yy_oper->operstring);
+			else if(!EmptyString(yy_oper->operstring))
+				conf_report_error("Ignoring operstring setting for oper %s -- operstring too long.", yy_oper->name);
+		}
+
 #ifdef HAVE_LIBCRYPTO
 		if(yy_oper->rsa_pubkey_file)
 		{
@@ -663,7 +686,7 @@ conf_end_oper(struct TopConf *tc)
 						yy_tmpoper->name);
 				return 0;
 			}
-
+				
 			yy_tmpoper->rsa_pubkey =
 				(RSA *) PEM_read_bio_RSA_PUBKEY(file, NULL, 0, NULL);
 
@@ -710,9 +733,40 @@ conf_set_oper_fingerprint(void *data)
 }
 
 static void
+conf_set_oper_swhois(void *data)
+{
+	if (yy_oper->swhois)
+		rb_free(yy_oper->swhois);
+	yy_oper->swhois = rb_strdup((char *) data);
+}
+
+static void
+conf_set_oper_operstring(void *data)
+{
+	if (yy_oper->operstring)
+		rb_free(yy_oper->operstring);
+	yy_oper->operstring = rb_strdup((char *) data);
+}
+
+static void
+conf_set_oper_vhost(void *data)
+{
+	if (yy_oper->vhost)
+		rb_free(yy_oper->vhost);
+	yy_oper->vhost = rb_strdup((char *) data);
+}
+
+static void
 conf_set_oper_privset(void *data)
 {
 	yy_oper->privset = privilegeset_get((char *) data);
+}
+
+static void
+conf_set_oper_floodmult(void *data)
+{
+	unsigned int maxmult = 64; // sloooooowwwww
+	yy_oper->flood_multiplier = *(unsigned int *)data < maxmult ? *(unsigned int *)data : maxmult;
 }
 
 static void
@@ -767,14 +821,14 @@ conf_set_oper_rsa_public_key_file(void *data)
 	rb_free(yy_oper->rsa_pubkey_file);
 	yy_oper->rsa_pubkey_file = rb_strdup((char *) data);
 #else
-	conf_report_error("Warning -- ignoring rsa_public_key_file (OpenSSL support not available");
+	conf_report_error("Warning -- ignoring rsa_public_key_file (OpenSSL support not available)");
 #endif
 }
 
 static void
 conf_set_oper_umodes(void *data)
 {
-	set_modes_from_table(&yy_oper->umodes, "umode", umode_table, data);
+	set_modes_from_global_table(&yy_oper->umodes, "umode", data);
 }
 
 static void
@@ -790,6 +844,10 @@ conf_begin_class(struct TopConf *tc)
 		free_class(yy_class);
 
 	yy_class = make_class();
+	yy_class->flood_multiplier = 16; // KEEP THIS AT 16! the denominator of this madness
+	// will be made runtime configurable, but right now 16 is a compromise.
+	// 32 is slow flooding, 8 is faster flooding allowed, 4 is old no_oper_flood
+	// 0 is absolute allowed flood (multiplies the left side of the check by 0 so it's always OK)
 	return 0;
 }
 
@@ -876,6 +934,13 @@ conf_set_class_connectfreq(void *data)
 }
 
 static void
+conf_set_class_floodmult(void *data)
+{
+	unsigned int maxmult = 64; // sloooooowwwww, cannot go slower because that would just break shit
+	yy_class->flood_multiplier = *(unsigned int *)data < maxmult ? *(unsigned int *)data : maxmult;
+}
+
+static void
 conf_set_class_max_number(void *data)
 {
 	yy_class->max_total = *(unsigned int *) data;
@@ -905,11 +970,7 @@ conf_end_listen(struct TopConf *tc)
 	return 0;
 }
 
-static void
-conf_set_listen_defer_accept(void *data)
-{
-	yy_defer_accept = *(unsigned int *) data;
-}
+
 
 static void
 conf_set_listen_port_both(void *data, int ssl)
@@ -917,7 +978,7 @@ conf_set_listen_port_both(void *data, int ssl)
 	conf_parm_t *args = data;
 	for (; args; args = args->next)
 	{
-		if(CF_TYPE(args->type) != CF_INT)
+		if((args->type & CF_MTYPE) != CF_INT)
 		{
 			conf_report_error
 				("listener::port argument is not an integer " "-- ignoring.");
@@ -925,9 +986,9 @@ conf_set_listen_port_both(void *data, int ssl)
 		}
                 if(listener_address == NULL)
                 {
-			add_listener(args->v.number, listener_address, AF_INET, ssl, ssl || yy_defer_accept);
+			add_listener(args->v.number, listener_address, AF_INET, ssl);
 #ifdef RB_IPV6
-			add_listener(args->v.number, listener_address, AF_INET6, ssl, ssl || yy_defer_accept);
+			add_listener(args->v.number, listener_address, AF_INET6, ssl);
 #endif
                 }
 		else
@@ -936,14 +997,49 @@ conf_set_listen_port_both(void *data, int ssl)
 #ifdef RB_IPV6
 			if(strchr(listener_address, ':') != NULL)
 				family = AF_INET6;
-			else
+			else 
 #endif
 				family = AF_INET;
-
-			add_listener(args->v.number, listener_address, family, ssl, ssl || yy_defer_accept);
-
+		
+			add_listener(args->v.number, listener_address, family, ssl);
+                
                 }
 
+	}
+}
+
+static void
+conf_set_listen_port_sctp_both(void *data, int ssl)
+{
+	conf_parm_t *args = data;
+	for (; args; args = args->next)
+	{
+		if((args->type & CF_MTYPE) != CF_INT)
+		{
+			conf_report_error
+				("listener::sctpport argument is not an integer " "-- ignoring.");
+			continue;
+		}
+                if(listener_address == NULL)
+                {
+			add_sctp_listener(args->v.number, listener_address, AF_INET, ssl);
+#ifdef RB_IPV6
+			add_sctp_listener(args->v.number, listener_address, AF_INET6, ssl);
+#endif
+                }
+		else
+                {
+			int family;
+#ifdef RB_IPV6
+			if(strchr(listener_address, ':') != NULL)
+				family = AF_INET6;
+			else 
+#endif
+				family = AF_INET;
+		
+			add_sctp_listener(args->v.number, listener_address, family, ssl);
+                
+                }
 	}
 }
 
@@ -957,6 +1053,18 @@ static void
 conf_set_listen_sslport(void *data)
 {
 	conf_set_listen_port_both(data, 1);
+}
+
+static void
+conf_set_listen_sctpport(void *data)
+{
+	conf_set_listen_port_sctp_both(data, 0);
+}
+
+static void
+conf_set_listen_sctpsslport(void *data)
+{
+	conf_set_listen_port_sctp_both(data, 1);
 }
 
 static void
@@ -1013,8 +1121,8 @@ conf_end_auth(struct TopConf *tc)
 	else if ((found_conf = find_exact_conf_by_address(yy_aconf->host, CONF_CLIENT, yy_aconf->user)) &&
 			(!found_conf->spasswd || (yy_aconf->spasswd &&
 			    0 == irccmp(found_conf->spasswd, yy_aconf->spasswd))))
-		conf_report_error("Ignoring duplicate auth block for %s@%s",
-				yy_aconf->user, yy_aconf->host);
+		conf_report_error("Ignoring duplicate auth block for %s@%s[%s]",
+				yy_aconf->user, yy_aconf->host, (yy_aconf->webircname == NULL) ? "no webircname" : yy_aconf->webircname);
 	else
 		add_conf_by_address(yy_aconf->host, CONF_CLIENT, yy_aconf->user, yy_aconf->spasswd, yy_aconf);
 
@@ -1027,7 +1135,7 @@ conf_end_auth(struct TopConf *tc)
 
 		if(yy_aconf->spasswd)
 			yy_tmp->spasswd = rb_strdup(yy_aconf->spasswd);
-
+		
 		/* this will always exist.. */
 		yy_tmp->info.name = rb_strdup(yy_aconf->info.name);
 
@@ -1045,7 +1153,8 @@ conf_end_auth(struct TopConf *tc)
 		if ((found_conf = find_exact_conf_by_address("*", CONF_CLIENT, "*")) && found_conf->spasswd == NULL)
 			conf_report_error("Ignoring redundant auth block (after *@*)");
 		else if ((found_conf = find_exact_conf_by_address(yy_tmp->host, CONF_CLIENT, yy_tmp->user)) &&
-				(!found_conf->spasswd || (yy_tmp->spasswd &&
+				( (!found_conf->spasswd && !yy_tmp->spasswd) ||
+				  (found_conf->spasswd && yy_tmp->spasswd &&
 				    0 == irccmp(found_conf->spasswd, yy_tmp->spasswd))))
 			conf_report_error("Ignoring duplicate auth block for %s@%s",
 					yy_tmp->user, yy_tmp->host);
@@ -1170,6 +1279,32 @@ conf_set_auth_spoof(void *data)
 }
 
 static void
+conf_set_auth_webircname(void *data)
+{
+	char *p;
+	char *user = NULL;
+	char *host = NULL;
+
+	host = data;
+
+	if(EmptyString(host))
+	{
+		conf_report_error("Warning -- webircname empty.");
+		return;
+	}
+
+	if(strlen(host) > HOSTLEN)
+	{
+		conf_report_error("Warning -- webircname length invalid.");
+		return;
+	}
+
+	rb_free(yy_aconf->webircname);
+	yy_aconf->webircname = rb_strdup(data);
+	yy_aconf->flags |= CONF_FLAGS_SPOOF_WEBCHAT;
+}
+
+static void
 conf_set_auth_flags(void *data)
 {
 	conf_parm_t *args = data;
@@ -1239,7 +1374,7 @@ conf_set_shared_oper(void *data)
 
 	if(args->next != NULL)
 	{
-		if(CF_TYPE(args->type) != CF_QSTRING)
+		if((args->type & CF_MTYPE) != CF_QSTRING)
 		{
 			conf_report_error("Ignoring shared::oper -- server is not a qstring");
 			return;
@@ -1251,7 +1386,7 @@ conf_set_shared_oper(void *data)
 	else
 		yy_shared->server = rb_strdup("*");
 
-	if(CF_TYPE(args->type) != CF_QSTRING)
+	if((args->type & CF_MTYPE) != CF_QSTRING)
 	{
 		conf_report_error("Ignoring shared::oper -- oper is not a qstring");
 		return;
@@ -1658,8 +1793,9 @@ conf_set_general_compression_level(void *data)
 #endif
 }
 
+// older version
 static void
-conf_set_general_default_umodes(void *data)
+conf_set_general_default_umodes_by_character(void *data)
 {
 	char *pm;
 	int what = MODE_ADD, flag;
@@ -1678,6 +1814,7 @@ conf_set_general_default_umodes(void *data)
 
 		/* don't allow +o */
 		case 'o':
+		case 'A':
 		case 'S':
 		case 'Z':
 		case ' ':
@@ -1698,38 +1835,23 @@ conf_set_general_default_umodes(void *data)
 	}
 }
 
+// newer version
 static void
-conf_set_general_oper_umodes(void *data)
+conf_set_general_default_umodes(void *data)
 {
-	set_modes_from_table(&ConfigFileEntry.oper_umodes, "umode", umode_table, data);
+	set_modes_from_global_table(&ConfigFileEntry.default_umodes, "umode", data);
 }
 
 static void
-conf_set_general_certfp_method(void *data)
+conf_set_general_oper_umodes(void *data)
 {
-	char *method = data;
-
-	if (!strcasecmp(method, CERTFP_NAME_CERT_SHA1))
-		ConfigFileEntry.certfp_method = RB_SSL_CERTFP_METH_CERT_SHA1;
-	else if (!strcasecmp(method, CERTFP_NAME_CERT_SHA256))
-		ConfigFileEntry.certfp_method = RB_SSL_CERTFP_METH_CERT_SHA256;
-	else if (!strcasecmp(method, CERTFP_NAME_CERT_SHA512))
-		ConfigFileEntry.certfp_method = RB_SSL_CERTFP_METH_CERT_SHA512;
-	else if (!strcasecmp(method, CERTFP_NAME_SPKI_SHA256))
-		ConfigFileEntry.certfp_method = RB_SSL_CERTFP_METH_SPKI_SHA256;
-	else if (!strcasecmp(method, CERTFP_NAME_SPKI_SHA512))
-		ConfigFileEntry.certfp_method = RB_SSL_CERTFP_METH_SPKI_SHA512;
-	else
-	{
-		ConfigFileEntry.certfp_method = RB_SSL_CERTFP_METH_CERT_SHA1;
-		conf_report_error("Ignoring general::certfp_method -- bogus certfp method %s", method);
-	}
+	set_modes_from_global_table(&ConfigFileEntry.oper_umodes, "umode", data);
 }
 
 static void
 conf_set_general_oper_only_umodes(void *data)
 {
-	set_modes_from_table(&ConfigFileEntry.oper_only_umodes, "umode", umode_table, data);
+	set_modes_from_global_table(&ConfigFileEntry.oper_only_umodes, "umode", data);
 }
 
 static void
@@ -1771,9 +1893,26 @@ conf_set_serverhide_links_delay(void *data)
 	ConfigServerHide.links_delay = val;
 }
 
+static int
+conf_begin_service(struct TopConf *tc)
+{
+	struct Client *target_p;
+	rb_dlink_node *ptr;
+
+	RB_DLINK_FOREACH(ptr, global_serv_list.head)
+	{
+		target_p = ptr->data;
+
+		target_p->flags &= ~FLAGS_SERVICE;
+	}
+
+	return 0;
+}
+
 static void
 conf_set_service_name(void *data)
 {
+	struct Client *target_p;
 	const char *s;
 	char *tmp;
 	int dots = 0;
@@ -1798,6 +1937,9 @@ conf_set_service_name(void *data)
 
 	tmp = rb_strdup(data);
 	rb_dlinkAddAlloc(tmp, &service_list);
+
+	if((target_p = find_server(NULL, tmp)))
+		target_p->flags |= FLAGS_SERVICE;
 }
 
 static int
@@ -1838,6 +1980,11 @@ conf_end_alias(struct TopConf *tc)
 		return -1;
 	}
 
+	if (yy_alias->prefix == NULL)
+	{
+		yy_alias->prefix = rb_strdup("");
+	}
+
 	irc_dictionary_add(alias_dict, yy_alias->name, yy_alias);
 
 	return 0;
@@ -1862,223 +2009,33 @@ conf_set_alias_target(void *data)
 }
 
 static void
-conf_set_channel_autochanmodes(void *data)
+conf_set_alias_prefix(void *data)
 {
-	char *pm;
-	int what = MODE_ADD;
+	if (data == NULL || yy_alias == NULL)	/* this shouldn't ever happen */
+		return;
 
-	ConfigChannel.autochanmodes = 0;
-	for (pm = (char *) data; *pm; pm++)
-	{
-		switch (*pm)
-		{
-		case '+':
-			what = MODE_ADD;
-			break;
-		case '-':
-			what = MODE_DEL;
-			break;
-
-		default:
-			if (chmode_table[(unsigned char) *pm].set_func == chm_simple)
-			{
-				if (what == MODE_ADD)
-					ConfigChannel.autochanmodes |= chmode_table[(unsigned char) *pm].mode_type;
-				else
-					ConfigChannel.autochanmodes &= ~chmode_table[(unsigned char) *pm].mode_type;
-			}
-			else
-			{
-				conf_report_error("channel::autochanmodes -- Invalid channel mode %c", *pm);
-				continue;
-			}
-			break;
-		}
-	}
+	yy_alias->prefix = rb_strdup(data);
 }
-
-/* XXX for below */
-static void conf_set_blacklist_reason(void *data);
 
 static void
 conf_set_blacklist_host(void *data)
 {
-	if (yy_blacklist_host)
-	{
-		conf_report_error("blacklist::host %s overlaps existing host %s",
-			(char *)data, yy_blacklist_host);
-
-		/* Cleanup */
-		conf_set_blacklist_reason(NULL);
-		return;
-	}
-
-	yy_blacklist_ipv4 = 1;
-	yy_blacklist_ipv6 = 0;
 	yy_blacklist_host = rb_strdup(data);
-}
-
-static void
-conf_set_blacklist_type(void *data)
-{
-	conf_parm_t *args = data;
-
-	/* Don't assume we have either if we got here */
-	yy_blacklist_ipv4 = 0;
-	yy_blacklist_ipv6 = 0;
-
-	for (; args; args = args->next)
-	{
-		if (!strcasecmp(args->v.string, "ipv4"))
-			yy_blacklist_ipv4 = 1;
-		else if (!strcasecmp(args->v.string, "ipv6"))
-			yy_blacklist_ipv6 = 1;
-		else
-			conf_report_error("blacklist::type has unknown address family %s",
-					  args->v.string);
-	}
-
-	/* If we have neither, just default to IPv4 */
-	if (!yy_blacklist_ipv4 && !yy_blacklist_ipv6)
-	{
-		conf_report_error("blacklist::type has neither IPv4 nor IPv6 (defaulting to IPv4)");
-		yy_blacklist_ipv4 = 1;
-	}
-}
-
-static void
-conf_set_blacklist_matches(void *data)
-{
-	conf_parm_t *args = data;
-
-	for (; args; args = args->next)
-	{
-		struct BlacklistFilter *filter;
-		char *str = args->v.string;
-		char *p;
-		int type = BLACKLIST_FILTER_LAST;
-
-		if (CF_TYPE(args->type) != CF_QSTRING)
-		{
-			conf_report_error("blacklist::matches -- must be quoted string");
-			continue;
-		}
-
-		if (str == NULL)
-		{
-			conf_report_error("blacklist::matches -- invalid entry");
-			continue;
-		}
-
-		if (strlen(str) > HOSTIPLEN)
-		{
-			conf_report_error("blacklist::matches has an entry too long: %s",
-					str);
-			continue;
-		}
-
-		for (p = str; *p != '\0'; p++)
-		{
-			/* Check for validity */
-			if (*p == '.')
-				type = BLACKLIST_FILTER_ALL;
-			else if (!isalnum((unsigned char)*p))
-			{
-				conf_report_error("blacklist::matches has invalid IP match entry %s",
-						str);
-				type = 0;
-				break;
-			}
-		}
-
-		if (type == BLACKLIST_FILTER_ALL)
-		{
-			/* Basic IP sanity check */
-			struct rb_sockaddr_storage tmp;
-			if (rb_inet_pton(AF_INET, str, &tmp) <= 0)
-			{
-				conf_report_error("blacklist::matches has invalid IP match entry %s",
-						str);
-				continue;
-			}
-		}
-		else if (type == BLACKLIST_FILTER_LAST)
-		{
-			/* Verify it's the correct length */
-			if (strlen(str) > 3)
-			{
-				conf_report_error("blacklist::matches has invalid octet match entry %s",
-						str);
-				continue;
-			}
-		}
-		else
-		{
-			continue; /* Invalid entry */
-		}
-
-		filter = rb_malloc(sizeof(struct BlacklistFilter));
-		filter->type = type;
-		rb_strlcpy(filter->filterstr, str, sizeof(filter->filterstr));
-
-		rb_dlinkAdd(filter, &filter->node, &yy_blacklist_filters);
-	}
 }
 
 static void
 conf_set_blacklist_reason(void *data)
 {
-	rb_dlink_node *ptr, *nptr;
+	yy_blacklist_reason = rb_strdup(data);
 
-	if (yy_blacklist_host && data)
+	if (yy_blacklist_host && yy_blacklist_reason)
 	{
-		yy_blacklist_reason = rb_strdup(data);
-		if (yy_blacklist_ipv6)
-		{
-			/* Make sure things fit (64 = alnum count + dots) */
-			if ((64 + strlen(yy_blacklist_host)) > IRCD_RES_HOSTLEN)
-			{
-				conf_report_error("blacklist::host %s results in IPv6 queries that are too long",
-						  yy_blacklist_host);
-				goto cleanup_bl;
-			}
-		}
-		/* Avoid doing redundant check, IPv6 is bigger than IPv4 --Elizabeth */
-		if (yy_blacklist_ipv4 && !yy_blacklist_ipv6)
-		{
-			/* Make sure things fit (16 = number of nums + dots) */
-			if ((16 + strlen(yy_blacklist_host)) > IRCD_RES_HOSTLEN)
-			{
-				conf_report_error("blacklist::host %s results in IPv4 queries that are too long",
-						  yy_blacklist_host);
-				goto cleanup_bl;
-			}
-		}
-
-		new_blacklist(yy_blacklist_host, yy_blacklist_reason, yy_blacklist_ipv4, yy_blacklist_ipv6,
-				&yy_blacklist_filters);
+		new_blacklist(yy_blacklist_host, yy_blacklist_reason);
+		rb_free(yy_blacklist_host);
+		rb_free(yy_blacklist_reason);
+		yy_blacklist_host = NULL;
+		yy_blacklist_reason = NULL;
 	}
-
-cleanup_bl:
-	if (data == NULL)
-	{
-		RB_DLINK_FOREACH_SAFE(ptr, nptr, yy_blacklist_filters.head)
-		{
-			rb_dlinkDelete(ptr, &yy_blacklist_filters);
-			rb_free(ptr);
-		}
-	}
-	else
-	{
-		yy_blacklist_filters = (rb_dlink_list){ NULL, NULL, 0 };
-	}
-
-	rb_free(yy_blacklist_host);
-	rb_free(yy_blacklist_reason);
-	yy_blacklist_host = NULL;
-	yy_blacklist_reason = NULL;
-	yy_blacklist_ipv4 = 1;
-	yy_blacklist_ipv6 = 0;
 }
 
 /* public functions */
@@ -2101,7 +2058,7 @@ conf_report_error(const char *fmt, ...)
 	}
 
 	ierror("\"%s\", line %d: %s", current_file, lineno + 1, msg);
-	sendto_realops_snomask(SNO_GENERAL, L_ALL, "\"%s\", line %d: %s", current_file, lineno + 1, msg);
+	sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "\"%s\", line %d: %s", current_file, lineno + 1, msg);
 }
 
 int
@@ -2128,13 +2085,11 @@ conf_start_block(char *block, char *name)
 int
 conf_end_block(struct TopConf *tc)
 {
-	int ret = 0;
 	if(tc->tc_efunc)
-		ret = tc->tc_efunc(tc);
+		return tc->tc_efunc(tc);
 
 	rb_free(conf_cur_block_name);
-	conf_cur_block_name = NULL;
-	return ret;
+	return 0;
 }
 
 static void
@@ -2157,7 +2112,7 @@ conf_set_generic_string(void *data, int len, void *location)
 }
 
 int
-conf_call_set(struct TopConf *tc, char *item, conf_parm_t * value)
+conf_call_set(struct TopConf *tc, char *item, conf_parm_t * value, int type)
 {
 	struct ConfEntry *cf;
 	conf_parm_t *cp;
@@ -2186,7 +2141,7 @@ conf_call_set(struct TopConf *tc, char *item, conf_parm_t * value)
 
 	if(CF_TYPE(value->v.list->type) != CF_TYPE(cf->cf_type))
 	{
-		/* if it expects a string value, but we got a yesno,
+		/* if it expects a string value, but we got a yesno, 
 		 * convert it back
 		 */
 		if((CF_TYPE(value->v.list->type) == CF_YESNO) &&
@@ -2262,7 +2217,7 @@ add_conf_item(const char *topconf, const char *name, int type, void (*func) (voi
 	if((tc = find_top_conf(topconf)) == NULL)
 		return -1;
 
-	if(find_conf_item(tc, name) != NULL)
+	if((cf = find_conf_item(tc, name)) != NULL)
 		return -1;
 
 	cf = rb_malloc(sizeof(struct ConfEntry));
@@ -2303,6 +2258,7 @@ remove_conf_item(const char *topconf, const char *name)
 static struct ConfEntry conf_serverinfo_table[] =
 {
 	{ "description", 	CF_QSTRING, NULL, 0, &ServerInfo.description	},
+	{ "network_desc", 	CF_QSTRING, NULL, 0, &ServerInfo.network_desc	},
 	{ "hub", 		CF_YESNO,   NULL, 0, &ServerInfo.hub		},
 
 	{ "network_name", 	CF_QSTRING, conf_set_serverinfo_network_name,	0, NULL },
@@ -2313,14 +2269,11 @@ static struct ConfEntry conf_serverinfo_table[] =
 
 	{ "ssl_private_key",    CF_QSTRING, NULL, 0, &ServerInfo.ssl_private_key },
 	{ "ssl_ca_cert",        CF_QSTRING, NULL, 0, &ServerInfo.ssl_ca_cert },
-	{ "ssl_cert",           CF_QSTRING, NULL, 0, &ServerInfo.ssl_cert },
+	{ "ssl_cert",           CF_QSTRING, NULL, 0, &ServerInfo.ssl_cert },   
 	{ "ssl_dh_params",      CF_QSTRING, NULL, 0, &ServerInfo.ssl_dh_params },
-	{ "ssl_cipher_list",	CF_QSTRING, NULL, 0, &ServerInfo.ssl_cipher_list },
 	{ "ssld_count",		CF_INT,	    NULL, 0, &ServerInfo.ssld_count },
 
 	{ "default_max_clients",CF_INT,     NULL, 0, &ServerInfo.default_max_clients },
-
-	{ "nicklen",		CF_INT,     conf_set_serverinfo_nicklen, 0, NULL },
 
 	{ "\0",	0, NULL, 0, NULL }
 };
@@ -2335,15 +2288,15 @@ static struct ConfEntry conf_admin_table[] =
 
 static struct ConfEntry conf_log_table[] =
 {
-	{ "fname_userlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_userlog	},
-	{ "fname_fuserlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_fuserlog	},
-	{ "fname_operlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_operlog	},
-	{ "fname_foperlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_foperlog	},
-	{ "fname_serverlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_serverlog	},
-	{ "fname_killlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_killlog	},
-	{ "fname_klinelog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_klinelog	},
-	{ "fname_operspylog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_operspylog	},
-	{ "fname_ioerrorlog", 	CF_QSTRING, NULL, PATH_MAX, &ConfigFileEntry.fname_ioerrorlog },
+	{ "fname_userlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_userlog	},
+	{ "fname_fuserlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_fuserlog	},
+	{ "fname_operlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_operlog	},
+	{ "fname_foperlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_foperlog	},
+	{ "fname_serverlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_serverlog	},
+	{ "fname_killlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_killlog	},
+	{ "fname_klinelog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_klinelog	},
+	{ "fname_operspylog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_operspylog	},
+	{ "fname_ioerrorlog", 	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.fname_ioerrorlog },
 	{ "\0",			0,	    NULL, 0,          NULL }
 };
 
@@ -2352,8 +2305,12 @@ static struct ConfEntry conf_operator_table[] =
 	{ "rsa_public_key_file",  CF_QSTRING, conf_set_oper_rsa_public_key_file, 0, NULL },
 	{ "flags",	CF_STRING | CF_FLIST, conf_set_oper_flags,	0, NULL },
 	{ "umodes",	CF_STRING | CF_FLIST, conf_set_oper_umodes,	0, NULL },
+	{ "flood_multiplier", CF_INT, conf_set_oper_floodmult, 0, NULL },
 	{ "privset",	CF_QSTRING, conf_set_oper_privset,	0, NULL },
 	{ "snomask",    CF_QSTRING, conf_set_oper_snomask,      0, NULL },
+	{ "swhois",     CF_QSTRING, conf_set_oper_swhois,       0, NULL },
+	{ "operstring", CF_QSTRING, conf_set_oper_operstring,   0, NULL },
+	{ "vhost",      CF_QSTRING, conf_set_oper_vhost,        0, NULL },
 	{ "user",	CF_QSTRING, conf_set_oper_user,		0, NULL },
 	{ "password",	CF_QSTRING, conf_set_oper_password,	0, NULL },
 	{ "fingerprint",	CF_QSTRING, conf_set_oper_fingerprint,	0, NULL },
@@ -2380,6 +2337,7 @@ static struct ConfEntry conf_class_table[] =
 	{ "number_per_ident", 	CF_INT,  conf_set_class_number_per_ident,	0, NULL },
 	{ "connectfreq", 	CF_TIME, conf_set_class_connectfreq,		0, NULL },
 	{ "max_number", 	CF_INT,  conf_set_class_max_number,		0, NULL },
+	{ "flood_multiplier",	CF_INT,  conf_set_class_floodmult, 0, NULL},
 	{ "sendq", 		CF_TIME, conf_set_class_sendq,			0, NULL },
 	{ "\0",	0, NULL, 0, NULL }
 };
@@ -2391,6 +2349,7 @@ static struct ConfEntry conf_auth_table[] =
 	{ "password",	CF_QSTRING, conf_set_auth_passwd,	0, NULL },
 	{ "class",	CF_QSTRING, conf_set_auth_class,	0, NULL },
 	{ "spoof",	CF_QSTRING, conf_set_auth_spoof,	0, NULL },
+	{ "webircname",	CF_QSTRING, conf_set_auth_webircname,	0, NULL },
 	{ "redirserv",	CF_QSTRING, conf_set_auth_redir_serv,	0, NULL },
 	{ "redirport",	CF_INT,     conf_set_auth_redir_port,	0, NULL },
 	{ "flags",	CF_STRING | CF_FLIST, conf_set_auth_flags,	0, NULL },
@@ -2424,15 +2383,20 @@ static struct ConfEntry conf_general_table[] =
 	{ "kline_delay", 	CF_TIME,   conf_set_general_kline_delay,	0, NULL },
 	{ "stats_k_oper_only", 	CF_STRING, conf_set_general_stats_k_oper_only,	0, NULL },
 	{ "stats_i_oper_only", 	CF_STRING, conf_set_general_stats_i_oper_only,	0, NULL },
+#ifdef	UPGRADED_DEFAULT_UMODES_SYSTEM
 	{ "default_umodes",	CF_QSTRING, conf_set_general_default_umodes, 0, NULL },
-
+#else
+	{ "default_umodes",	CF_QSTRING, conf_set_general_default_umodes_by_character, 0, NULL },
+#endif
+	{ "cloak_key",	CF_QSTRING, NULL, REALLEN,    &ConfigFileEntry.cloak_key },
 	{ "default_operstring",	CF_QSTRING, NULL, REALLEN,    &ConfigFileEntry.default_operstring },
 	{ "default_adminstring",CF_QSTRING, NULL, REALLEN,    &ConfigFileEntry.default_adminstring },
+	{ "default_netadminstring",CF_QSTRING, NULL, REALLEN,    &ConfigFileEntry.default_netadminstring },
 	{ "servicestring",	CF_QSTRING, NULL, REALLEN,    &ConfigFileEntry.servicestring },
+	{ "egdpool_path",	CF_QSTRING, NULL, MAXPATHLEN, &ConfigFileEntry.egdpool_path },
 	{ "kline_reason",	CF_QSTRING, NULL, REALLEN, &ConfigFileEntry.kline_reason },
 	{ "identify_service",	CF_QSTRING, NULL, REALLEN, &ConfigFileEntry.identifyservice },
 	{ "identify_command",	CF_QSTRING, NULL, REALLEN, &ConfigFileEntry.identifycommand },
-	{ "sasl_service",	CF_QSTRING, NULL, REALLEN, &ConfigFileEntry.sasl_service },
 
 	{ "anti_spam_exit_message_time", CF_TIME,  NULL, 0, &ConfigFileEntry.anti_spam_exit_message_time },
 	{ "disable_fake_channels",	 CF_YESNO, NULL, 0, &ConfigFileEntry.disable_fake_channels },
@@ -2445,7 +2409,7 @@ static struct ConfEntry conf_general_table[] =
 	{ "caller_id_wait",	CF_TIME,  NULL, 0, &ConfigFileEntry.caller_id_wait	},
 	{ "client_exit",	CF_YESNO, NULL, 0, &ConfigFileEntry.client_exit		},
 	{ "collision_fnc",	CF_YESNO, NULL, 0, &ConfigFileEntry.collision_fnc	},
-	{ "resv_fnc",		CF_YESNO, NULL, 0, &ConfigFileEntry.resv_fnc		},
+	{ "post_registration_delay", CF_TIME, NULL, 0, &ConfigFileEntry.post_registration_delay	},
 	{ "connect_timeout",	CF_TIME,  NULL, 0, &ConfigFileEntry.connect_timeout	},
 	{ "default_floodcount", CF_INT,   NULL, 0, &ConfigFileEntry.default_floodcount	},
 	{ "default_ident_timeout",	CF_INT, NULL, 0, &ConfigFileEntry.default_ident_timeout		},
@@ -2484,18 +2448,18 @@ static struct ConfEntry conf_general_table[] =
 	{ "stats_y_oper_only",	CF_YESNO, NULL, 0, &ConfigFileEntry.stats_y_oper_only	},
 	{ "target_change",	CF_YESNO, NULL, 0, &ConfigFileEntry.target_change	},
 	{ "ts_max_delta",	CF_TIME,  NULL, 0, &ConfigFileEntry.ts_max_delta	},
+	{ "use_egd",		CF_YESNO, NULL, 0, &ConfigFileEntry.use_egd		},
 	{ "ts_warn_delta",	CF_TIME,  NULL, 0, &ConfigFileEntry.ts_warn_delta	},
 	{ "use_whois_actually", CF_YESNO, NULL, 0, &ConfigFileEntry.use_whois_actually	},
 	{ "warn_no_nline",	CF_YESNO, NULL, 0, &ConfigFileEntry.warn_no_nline	},
+	{ "hide_opers",		CF_YESNO, NULL, 0, &ConfigFileEntry.operhide		},
+	{ "expire_override_time",CF_TIME, NULL, 0, &ConfigFileEntry.expire_override_time},
 	{ "use_propagated_bans",CF_YESNO, NULL, 0, &ConfigFileEntry.use_propagated_bans	},
 	{ "client_flood_max_lines",	CF_INT,   NULL, 0, &ConfigFileEntry.client_flood_max_lines	},
 	{ "client_flood_burst_rate",	CF_INT,   NULL, 0, &ConfigFileEntry.client_flood_burst_rate	},
 	{ "client_flood_burst_max",	CF_INT,   NULL, 0, &ConfigFileEntry.client_flood_burst_max	},
 	{ "client_flood_message_num",	CF_INT,   NULL, 0, &ConfigFileEntry.client_flood_message_num	},
 	{ "client_flood_message_time",	CF_INT,   NULL, 0, &ConfigFileEntry.client_flood_message_time	},
-	{ "max_ratelimit_tokens",	CF_INT,   NULL, 0, &ConfigFileEntry.max_ratelimit_tokens	},
-	{ "away_interval",		CF_INT,   NULL, 0, &ConfigFileEntry.away_interval		},
-	{ "certfp_method",	CF_STRING, conf_set_general_certfp_method, 0, NULL },
 	{ "\0", 		0, 	  NULL, 0, NULL }
 };
 
@@ -2507,21 +2471,26 @@ static struct ConfEntry conf_channel_table[] =
 	{ "kick_on_split_riding", CF_YESNO, NULL, 0, &ConfigChannel.kick_on_split_riding },
 	{ "knock_delay",	CF_TIME,  NULL, 0, &ConfigChannel.knock_delay		},
 	{ "knock_delay_channel",CF_TIME,  NULL, 0, &ConfigChannel.knock_delay_channel	},
+	{ "automatic_modes",    CF_QSTRING,   NULL, 0, &ConfigChannel.automodes		},
+	{ "automatic_topic",    CF_QSTRING,   NULL, 0, &ConfigChannel.autotopic		},
 	{ "max_bans",		CF_INT,   NULL, 0, &ConfigChannel.max_bans		},
 	{ "max_bans_large",	CF_INT,   NULL, 0, &ConfigChannel.max_bans_large	},
 	{ "max_chans_per_user", CF_INT,   NULL, 0, &ConfigChannel.max_chans_per_user 	},
+	{ "max_chans_per_user_large", CF_INT,   NULL, 0, &ConfigChannel.max_chans_per_user_large },
 	{ "no_create_on_split", CF_YESNO, NULL, 0, &ConfigChannel.no_create_on_split 	},
 	{ "no_join_on_split",	CF_YESNO, NULL, 0, &ConfigChannel.no_join_on_split	},
 	{ "only_ascii_channels", CF_YESNO, NULL, 0, &ConfigChannel.only_ascii_channels },
 	{ "use_except",		CF_YESNO, NULL, 0, &ConfigChannel.use_except		},
 	{ "use_invex",		CF_YESNO, NULL, 0, &ConfigChannel.use_invex		},
-	{ "use_forward",	CF_YESNO, NULL, 0, &ConfigChannel.use_forward		},
 	{ "use_knock",		CF_YESNO, NULL, 0, &ConfigChannel.use_knock		},
+	{ "disable_local_channels", CF_YESNO, NULL, 0, &ConfigChannel.disable_local_channels },
 	{ "resv_forcepart",     CF_YESNO, NULL, 0, &ConfigChannel.resv_forcepart	},
 	{ "channel_target_change", CF_YESNO, NULL, 0, &ConfigChannel.channel_target_change	},
 	{ "disable_local_channels", CF_YESNO, NULL, 0, &ConfigChannel.disable_local_channels },
-	{ "autochanmodes",	CF_QSTRING, conf_set_channel_autochanmodes, 0, NULL	},
-	{ "displayed_usercount",	CF_INT, NULL, 0, &ConfigChannel.displayed_usercount	},
+	{ "prefix_owner", CF_QSTRING, conf_set_qpfx, 0, NULL },
+	{ "prefix_master", CF_QSTRING, conf_set_mpfx, 0, NULL },
+	{ "prefix_admin", CF_QSTRING, conf_set_apfx, 0, NULL },
+	{ "prefix_halfop", CF_QSTRING, conf_set_hpfx, 0, NULL },
 	{ "\0", 		0, 	  NULL, 0, NULL }
 };
 
@@ -2550,16 +2519,17 @@ newconf_init()
 	add_top_conf("privset", NULL, NULL, conf_privset_table);
 
 	add_top_conf("listen", conf_begin_listen, conf_end_listen, NULL);
-	add_conf_item("listen", "defer_accept", CF_YESNO, conf_set_listen_defer_accept);
 	add_conf_item("listen", "port", CF_INT | CF_FLIST, conf_set_listen_port);
 	add_conf_item("listen", "sslport", CF_INT | CF_FLIST, conf_set_listen_sslport);
+	add_conf_item("listen", "sctpport", CF_INT | CF_FLIST, conf_set_listen_sctpport);
+	add_conf_item("listen", "sctpsslport", CF_INT | CF_FLIST, conf_set_listen_sctpsslport);
 	add_conf_item("listen", "ip", CF_QSTRING, conf_set_listen_address);
 	add_conf_item("listen", "host", CF_QSTRING, conf_set_listen_address);
 
 	add_top_conf("auth", conf_begin_auth, conf_end_auth, conf_auth_table);
 
 	add_top_conf("shared", conf_cleanup_shared, conf_cleanup_shared, NULL);
-	add_conf_item("shared", "oper", CF_QSTRING | CF_FLIST, conf_set_shared_oper);
+	add_conf_item("shared", "oper", CF_QSTRING|CF_FLIST, conf_set_shared_oper);
 	add_conf_item("shared", "flags", CF_STRING | CF_FLIST, conf_set_shared_flags);
 
 	add_top_conf("connect", conf_begin_connect, conf_end_connect, conf_connect_table);
@@ -2575,16 +2545,15 @@ newconf_init()
 	add_top_conf("channel", NULL, NULL, conf_channel_table);
 	add_top_conf("serverhide", NULL, NULL, conf_serverhide_table);
 
-	add_top_conf("service", NULL, NULL, NULL);
+	add_top_conf("service", conf_begin_service, NULL, NULL);
 	add_conf_item("service", "name", CF_QSTRING, conf_set_service_name);
 
 	add_top_conf("alias", conf_begin_alias, conf_end_alias, NULL);
 	add_conf_item("alias", "name", CF_QSTRING, conf_set_alias_name);
 	add_conf_item("alias", "target", CF_QSTRING, conf_set_alias_target);
+	add_conf_item("alias", "prefix", CF_QSTRING, conf_set_alias_prefix);
 
 	add_top_conf("blacklist", NULL, NULL, NULL);
 	add_conf_item("blacklist", "host", CF_QSTRING, conf_set_blacklist_host);
-	add_conf_item("blacklist", "type", CF_STRING | CF_FLIST, conf_set_blacklist_type);
-	add_conf_item("blacklist", "matches", CF_QSTRING | CF_FLIST, conf_set_blacklist_matches);
 	add_conf_item("blacklist", "reject_reason", CF_QSTRING, conf_set_blacklist_reason);
 }

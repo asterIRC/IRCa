@@ -219,9 +219,23 @@ block_item:	string itemlist ';'
 			free_cur_list(cur_list);
 			cur_list = NULL;
 		}
+		| string '=' itemlist ';'
+		{
+			conf_call_set(conf_cur_block, $1, cur_list);
+			free_cur_list(cur_list);
+			cur_list = NULL;
+		}
+		| string ':' itemlist ';'
+		{
+			conf_call_set(conf_cur_block, $1, cur_list);
+			free_cur_list(cur_list);
+			cur_list = NULL;
+		}
 		;
 
 itemlist: itemlist ',' single
+	| itemlist single
+	| '<' itemlist single '>'
 	| single
 	;
 

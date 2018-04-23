@@ -2,9 +2,9 @@
  *  ircd-ratbox: A slightly useful ircd.
  *  channel.c: Controls channels.
  *
- * Copyright (C) 1990 Jarkko Oikarinen and University of Oulu, Co Center
- * Copyright (C) 1996-2002 Hybrid Development Team
- * Copyright (C) 2002-2005 ircd-ratbox development team
+ * Copyright (C) 1990 Jarkko Oikarinen and University of Oulu, Co Center 
+ * Copyright (C) 1996-2002 Hybrid Development Team 
+ * Copyright (C) 2002-2005 ircd-ratbox development team 
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,8 +41,7 @@
 #include "s_conf.h"		/* ConfigFileEntry, ConfigChannel */
 #include "s_newconf.h"
 #include "logger.h"
-#include "ipv4_from_ipv6.h"
-#include "s_assert.h"
+#include "irc_dictionary.h"
 
 struct config_channel_entry ConfigChannel;
 rb_dlink_list global_channel_list;
@@ -51,11 +50,29 @@ static rb_bh *ban_heap;
 static rb_bh *topic_heap;
 static rb_bh *member_heap;
 
+static int channel_capabs[] = { CAP_EX, CAP_IE,
+	CAP_SERVICE,
+	CAP_TS6
+};
+
+#define NCHCAPS         (sizeof(channel_capabs)/sizeof(int))
+#define NCHCAP_COMBOS   (1 << NCHCAPS)
+
+static struct ChCapCombo chcap_combos[NCHCAP_COMBOS];
+
 static void free_topic(struct Channel *chptr);
 
 static int h_can_join;
+static int h_join_cognito;
 static int h_can_send;
 int h_get_channel_access;
+
+int isnumonly(const char *s)
+{
+	while (*s)
+		if (!IsDigit(*s++)) return 0;
+	return 1;
+}
 
 /* init_channels()
  *
@@ -72,6 +89,7 @@ init_channels(void)
 	member_heap = rb_bh_create(sizeof(struct membership), MEMBER_HEAP_SIZE, "member_heap");
 
 	h_can_join = register_hook("can_join");
+	h_join_cognito = register_hook("join_visible");
 	h_can_send = register_hook("can_send");
 	h_get_channel_access = register_hook("get_channel_access");
 }
@@ -85,12 +103,16 @@ allocate_channel(const char *chname)
 	struct Channel *chptr;
 	chptr = rb_bh_alloc(channel_heap);
 	chptr->chname = rb_strdup(chname);
+	struct Dictionary *metadata;
+	metadata = irc_dictionary_create(irccmp);
+	chptr->metadata = metadata;
 	return (chptr);
 }
 
 void
 free_channel(struct Channel *chptr)
 {
+	channel_metadata_clear(chptr);
 	rb_free(chptr->chname);
 	rb_free(chptr->mode_lock);
 	rb_bh_free(channel_heap, chptr);
@@ -125,24 +147,44 @@ free_ban(struct Ban *bptr)
  * side effects - none
  */
 void
-send_channel_join(struct Channel *chptr, struct Client *client_p)
+send_channel_join(int isnew, struct Channel *chptr, struct Client *client_p)
 {
 	if (!IsClient(client_p))
 		return;
 
-	sendto_channel_local_with_capability(ALL_MEMBERS, NOCAPS, CLICAP_EXTENDED_JOIN, chptr, ":%s!%s@%s JOIN %s",
-					     client_p->name, client_p->username, client_p->host, chptr->chname);
+	// XXX -- this is where our "join_visible" hook comes up.
+	// h_join_cognito is called "join_visible"
+	hook_data_channel moduledata;
 
-	sendto_channel_local_with_capability(ALL_MEMBERS, CLICAP_EXTENDED_JOIN, NOCAPS, chptr, ":%s!%s@%s JOIN %s %s :%s",
+	moduledata.client = client_p;
+	moduledata.chptr = chptr;
+	moduledata.approved = 0;
+	// XXX XXX -- 0 is truey, which is /very/ bizarre. -- janicez
+	call_hook(h_join_cognito, &moduledata);
+
+	struct membership *msptr = find_channel_membership(chptr, client_p);
+	if (msptr == NULL) return; // Bail on this before it gets any worse... :\ XXX probably not necessary
+
+	if (MyClient(client_p) && isnew) {
+		if (IsCapable(client_p, CLICAP_EXTENDED_JOIN))
+			sendto_one(client_p, ":%s!%s@%s JOIN %s %s :%s",
 					     client_p->name, client_p->username, client_p->host, chptr->chname,
 					     EmptyString(client_p->user->suser) ? "*" : client_p->user->suser,
 					     client_p->info);
+		else
+			sendto_one(client_p, ":%s!%s@%s JOIN %s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname);
+	}
 
-	/* Send away message to away-notify enabled clients. */
-	if (client_p->user->away)
-		sendto_channel_local_with_capability_butone(client_p, ALL_MEMBERS, CLICAP_AWAY_NOTIFY, NOCAPS, chptr,
-							    ":%s!%s@%s AWAY :%s", client_p->name, client_p->username,
-							    client_p->host, client_p->user->away);
+	if (is_delayed(msptr) || !!moduledata.approved) return; // probably auditorium
+
+	sendto_channel_local_with_capability_butone(client_p, ALL_MEMBERS, NOCAPS, CLICAP_EXTENDED_JOIN, chptr, ":%s!%s@%s JOIN %s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname);
+
+	sendto_channel_local_with_capability_butone(client_p, ALL_MEMBERS, CLICAP_EXTENDED_JOIN, NOCAPS, chptr, ":%s!%s@%s JOIN %s %s :%s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname,
+					     EmptyString(client_p->user->suser) ? "*" : client_p->user->suser,
+					     client_p->info);
 }
 
 /* find_channel_membership()
@@ -194,15 +236,34 @@ find_channel_membership(struct Channel *chptr, struct Client *client_p)
  * side effects -
  */
 const char *
-find_channel_status(struct membership *mp, int combine)
+find_channel_status_server(struct membership *msptr, int combine)
 {
-	static char buffer[7] = { (char)0, (char)0, (char)0, (char)0, (char)0, (char)0, (char)0 };
-	struct config_channel_entry *Cc = &ConfigChannel;
+	static char buffer[11];
 	char *p;
 
-	//p = buffer;
+	p = buffer;
 
-/*	out with this bullpucky.
+	if(is_bop(msptr))
+	{
+		if(!combine)
+			return "!";
+		*p++ = '!';
+	}
+
+	if(is_qop(msptr))
+	{
+		if(!combine)
+			return "~";
+		*p++ = '~';
+	}
+
+	if(is_sop(msptr))
+	{
+		if(!combine)
+			return "&";
+		*p++ = '&';
+	}
+
 	if(is_chanop(msptr))
 	{
 		if(!combine)
@@ -210,40 +271,82 @@ find_channel_status(struct membership *mp, int combine)
 		*p++ = '@';
 	}
 
+	if(is_halfop(msptr))
+	{
+		if(!combine)
+			return "%";
+		*p++ = '%';
+	}
+
 	if(is_voiced(msptr))
 		*p++ = '+';
-*/
-	// see what i meant in s_conf.[ch] about waste there being
-	// efficiency here? I've got one big snprintf()
-	// and now I only need to waste all but the first
-	// character for my return value if we aren't combining.
-	// -- reinhilde malik
-	rb_snprintf(buffer, sizeof buffer, "%s%s%s%s%s%s"
-		is_operbiz(mp) ? Cc->operprefix : "",
-		is_manager(mp) ? Cc->qprefix : "",
-		is_superop(mp) ? Cc->aprefix : "",
-		is_chanop(mp) ? "@" : "",
-		is_halfop(mp) ? Cc->hprefix : "",
-		is_voiced(mp) ? "+" : ""
-	);
 
-	// *p = '\0';
+	*p = '\0';
+	return buffer;
+}
 
-	if (!combine) {
-		p = buffer + 1; // skip a char.
-		*p = 0; // identical to '\0' but less effort...
+const char *
+find_channel_status(struct membership *msptr, int combine)
+{
+	static char buffer[11];
+	char *p;
+
+	p = buffer;
+
+	if(is_bop(msptr))
+	{
+		if(!EmptyString(ConfigChannel.qprefix)) {
+			if(!combine)
+				return ConfigChannel.qprefix;
+			*p++ = ConfigChannel.qprefix[0];
+		}
 	}
-	return buffer; // e.g. where 0 is NULL & _ is "":
-	// member is +qhv and not combining...
-	// buffer is _~__%+ -> ~%+ -> ~0+ -> we return what looks like "~"
-	// member is +yqo and we combine.
-	// buffer is *~_@__ -> we return "*~@"
+
+	if(is_qop(msptr))
+	{
+		if(!EmptyString(ConfigChannel.mprefix)) {
+			if(!combine)
+				return ConfigChannel.mprefix;
+			*p++ = ConfigChannel.mprefix[0];
+		}
+	}
+
+	if(is_sop(msptr))
+	{
+		if(!EmptyString(ConfigChannel.aprefix)) {
+			if(!combine)
+				return ConfigChannel.aprefix;
+			*p++ = ConfigChannel.aprefix[0];
+		}
+	}
+
+	if(is_chanop(msptr))
+	{
+		if(!combine)
+			return "@";
+		*p++ = '@';
+	}
+
+	if(is_halfop(msptr))
+	{
+		if(!EmptyString(ConfigChannel.hprefix)) {
+			if(!combine)
+				return ConfigChannel.hprefix;
+			*p++ = ConfigChannel.hprefix[0];
+		}
+	}
+
+	if(is_voiced(msptr))
+		*p++ = '+';
+
+	*p = '\0';
+	return buffer;
 }
 
 /* add_user_to_channel()
  *
  * input	- channel to add client to, client to add, channel flags
- * output	-
+ * output	- 
  * side effects - user is added to channel
  */
 void
@@ -459,9 +562,10 @@ channel_pub_or_secret(struct Channel *chptr)
  * side effects - client is given list of users on channel
  */
 void
-channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eon)
+channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eon, int delayed)
 {
 	struct membership *msptr;
+	struct membership *mptr;
 	struct Client *target_p;
 	rb_dlink_node *ptr;
 	char lbuf[BUFSIZE];
@@ -474,38 +578,32 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 
 	if(ShowChannel(client_p, chptr))
 	{
-		is_member = IsMember(client_p, chptr);
+		mptr = find_channel_membership(chptr, client_p);
+		int any_op = (mptr != NULL) ? is_any_op(mptr) : 0;
+		if (AnonChannel(chptr) && !any_op) {
+			// Just anonymise it.
+			sendto_one(client_p, ":%s 353 %s %s %s :-anonymous", me.name,
+			client_p->name, channel_pub_or_secret(chptr), chptr->chname);
+		} else {
+			is_member = IsMember(client_p, chptr);
 
-		cur_len = mlen = rb_sprintf(lbuf, form_str(RPL_NAMREPLY),
-					    me.name, client_p->name,
-					    channel_pub_or_secret(chptr), chptr->chname);
+			cur_len = mlen = rb_sprintf(lbuf, delayed ? form_str(RPL_DELNAMREPLY) : form_str(RPL_NAMREPLY),
+						    me.name, client_p->name,
+						    channel_pub_or_secret(chptr), chptr->chname);
 
-		t = lbuf + cur_len;
+			t = lbuf + cur_len;
 
-		RB_DLINK_FOREACH(ptr, chptr->members.head)
-		{
-			msptr = ptr->data;
-			target_p = msptr->client_p;
-
-			if(IsInvisible(target_p) && !is_member)
-				continue;
-
-			if (IsCapable(client_p, CLICAP_USERHOST_IN_NAMES))
+			RB_DLINK_FOREACH(ptr, chptr->members.head)
 			{
-				/* space, possible "@+" prefix */
-				if (cur_len + strlen(target_p->name) + strlen(target_p->username) + strlen(target_p->host) + 5 >= BUFSIZE - 5)
-				{
-					*(t - 1) = '\0';
-					sendto_one(client_p, "%s", lbuf);
-					cur_len = mlen;
-					t = lbuf + mlen;
-				}
+				msptr = ptr->data;
+				target_p = msptr->client_p;
 
-				tlen = rb_sprintf(t, "%s%s!%s@%s ", find_channel_status(msptr, stack),
-						  target_p->name, target_p->username, target_p->host);
-			}
-			else
-			{
+				if(IsInvisible(target_p) && !is_member)
+					continue;
+
+				if (delayed && !is_delayed(msptr)) continue; // Showing delayed users; this user isn't delayed.
+				if (client_p != target_p && !delayed && is_delayed(msptr)) continue; // Showing undelayed users; this user is delayed.
+
 				/* space, possible "@+" prefix */
 				if(cur_len + strlen(target_p->name) + 3 >= BUFSIZE - 3)
 				{
@@ -517,11 +615,10 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 
 				tlen = rb_sprintf(t, "%s%s ", find_channel_status(msptr, stack),
 						  target_p->name);
-			}
 
-			cur_len += tlen;
-			t += tlen;
-		}
+				cur_len += tlen;
+				t += tlen;
+			}
 
 		/* The old behaviour here was to always output our buffer,
 		 * even if there are no clients we can show.  This happens
@@ -530,11 +627,12 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 		 * reason for keeping that behaviour, as it just wastes
 		 * bandwidth.  --anfl
 		 */
-		if(cur_len != mlen)
-		{
-			*(t - 1) = '\0';
-			sendto_one(client_p, "%s", lbuf);
-		}
+			if(cur_len != mlen)
+			{
+				*(t - 1) = '\0';
+				sendto_one(client_p, "%s", lbuf);
+			}
+		} // else (if AnonChannel)
 	}
 
 	if(show_eon)
@@ -555,26 +653,21 @@ del_invite(struct Channel *chptr, struct Client *who)
 	rb_dlinkFindDestroy(chptr, &who->user->invited);
 }
 
-/* is_banned_list()
+/* is_banned()
  *
- * input	- channel to check bans for, ban list (banlist or quietlist),
- *                user to check bans against, optional prebuilt buffers,
- *                optional forward channel pointer
+ * input	- channel to check bans for, user to check bans against
+ *                optional prebuilt buffers
  * output	- 1 if banned, else 0
  * side effects -
  */
-static int
-is_banned_list(struct Channel *chptr, rb_dlink_list *list,
-	       struct Client *who, struct membership *msptr,
-	       const char *s, const char *s2, const char **forward)
+int
+is_banned(struct Channel *chptr, struct Client *who, struct membership *msptr,
+	  const char *s, const char *s2, const char **forward)
 {
 	char src_host[NICKLEN + USERLEN + HOSTLEN + 6];
 	char src_iphost[NICKLEN + USERLEN + HOSTLEN + 6];
 	char src_althost[NICKLEN + USERLEN + HOSTLEN + 6];
-	char src_ip4host[NICKLEN + USERLEN + HOSTLEN + 6];
 	char *s3 = NULL;
-	char *s4 = NULL;
-	struct sockaddr_in ip4;
 	rb_dlink_node *ptr;
 	struct Ban *actualBan = NULL;
 	struct Ban *actualExcept = NULL;
@@ -607,31 +700,15 @@ is_banned_list(struct Channel *chptr, rb_dlink_list *list,
 			s3 = src_althost;
 		}
 	}
-#ifdef RB_IPV6
-	if(who->localClient->ip.ss_family == AF_INET6 &&
-			ipv4_from_ipv6((const struct sockaddr_in6 *)&who->localClient->ip, &ip4))
-	{
-		rb_sprintf(src_ip4host, "%s!%s@", who->name, who->username);
-		s4 = src_ip4host + strlen(src_ip4host);
-		rb_inet_ntop_sock((struct sockaddr *)&ip4,
-				s4, src_ip4host + sizeof src_ip4host - s4);
-		s4 = src_ip4host;
-	}
-#endif
 
-	RB_DLINK_FOREACH(ptr, list->head)
+	RB_DLINK_FOREACH(ptr, chptr->banlist.head)
 	{
 		actualBan = ptr->data;
 		if(match(actualBan->banstr, s) ||
 		   match(actualBan->banstr, s2) ||
 		   match_cidr(actualBan->banstr, s2) ||
 		   match_extban(actualBan->banstr, who, chptr, CHFL_BAN) ||
-		   (s3 != NULL && match(actualBan->banstr, s3))
-#ifdef RB_IPV6
-		   ||
-		   (s4 != NULL && (match(actualBan->banstr, s4) || match_cidr(actualBan->banstr, s4)))
-#endif
-		   )
+		   (s3 != NULL && match(actualBan->banstr, s3)))
 			break;
 		else
 			actualBan = NULL;
@@ -685,35 +762,6 @@ is_banned_list(struct Channel *chptr, rb_dlink_list *list,
 	return ((actualBan ? CHFL_BAN : 0));
 }
 
-/* is_banned()
- *
- * input	- channel to check bans for, user to check bans against
- *                optional prebuilt buffers, optional forward channel pointer
- * output	- 1 if banned, else 0
- * side effects -
- */
-int
-is_banned(struct Channel *chptr, struct Client *who, struct membership *msptr,
-	  const char *s, const char *s2, const char **forward)
-{
-#if 0
-	if (chptr->last_checked_client != NULL &&
-		who == chptr->last_checked_client &&
-		chptr->last_checked_type == CHFL_BAN &&
-		chptr->last_checked_ts > chptr->bants)
-		return chptr->last_checked_result;
-
-	chptr->last_checked_client = who;
-	chptr->last_checked_type = CHFL_BAN;
-	chptr->last_checked_result = is_banned_list(chptr, &chptr->banlist, who, msptr, s, s2, forward);
-	chptr->last_checked_ts = rb_current_time();
-
-	return chptr->last_checked_result;
-#else
-	return is_banned_list(chptr, &chptr->banlist, who, msptr, s, s2, forward);
-#endif
-}
-
 /* is_quieted()
  *
  * input	- channel to check bans for, user to check bans against
@@ -725,22 +773,99 @@ int
 is_quieted(struct Channel *chptr, struct Client *who, struct membership *msptr,
 	   const char *s, const char *s2)
 {
-#if 0
-	if (chptr->last_checked_client != NULL &&
-		who == chptr->last_checked_client &&
-		chptr->last_checked_type == CHFL_QUIET &&
-		chptr->last_checked_ts > chptr->bants)
-		return chptr->last_checked_result;
+	char src_host[NICKLEN + USERLEN + HOSTLEN + 6];
+	char src_iphost[NICKLEN + USERLEN + HOSTLEN + 6];
+	char src_althost[NICKLEN + USERLEN + HOSTLEN + 6];
+	char *s3 = NULL;
+	rb_dlink_node *ptr;
+	struct Ban *actualBan = NULL;
+	struct Ban *actualExcept = NULL;
 
-	chptr->last_checked_client = who;
-	chptr->last_checked_type = CHFL_QUIET;
-	chptr->last_checked_result = is_banned_list(chptr, &chptr->quietlist, who, msptr, s, s2, NULL);
-	chptr->last_checked_ts = rb_current_time();
+	if(!MyClient(who))
+		return 0;
 
-	return chptr->last_checked_result;
-#else
-	return is_banned_list(chptr, &chptr->quietlist, who, msptr, s, s2, NULL);
-#endif
+	/* if the buffers havent been built, do it here */
+	if(s == NULL)
+	{
+		rb_sprintf(src_host, "%s!%s@%s", who->name, who->username, who->host);
+		rb_sprintf(src_iphost, "%s!%s@%s", who->name, who->username, who->sockhost);
+
+		s = src_host;
+		s2 = src_iphost;
+	}
+	if(who->localClient->mangledhost != NULL)
+	{
+		/* if host mangling mode enabled, also check their real host */
+		if(!strcmp(who->host, who->localClient->mangledhost))
+		{
+			rb_sprintf(src_althost, "%s!%s@%s", who->name, who->username, who->orighost);
+			s3 = src_althost;
+		}
+		/* if host mangling mode not enabled and no other spoof,
+		 * also check the mangled form of their host */
+		else if (!IsDynSpoof(who))
+		{
+			rb_sprintf(src_althost, "%s!%s@%s", who->name, who->username, who->localClient->mangledhost);
+			s3 = src_althost;
+		}
+	}
+
+	RB_DLINK_FOREACH(ptr, chptr->quietlist.head)
+	{
+		actualBan = ptr->data;
+		if(match(actualBan->banstr, s) ||
+		   match(actualBan->banstr, s2) ||
+		   match_cidr(actualBan->banstr, s2) ||
+		   match_extban(actualBan->banstr, who, chptr, CHFL_QUIET) ||
+		   (s3 != NULL && match(actualBan->banstr, s3)))
+			break;
+		else
+			actualBan = NULL;
+	}
+
+	if((actualBan != NULL) && ConfigChannel.use_except)
+	{
+		RB_DLINK_FOREACH(ptr, chptr->exceptlist.head)
+		{
+			actualExcept = ptr->data;
+
+			/* theyre exempted.. */
+			if(match(actualExcept->banstr, s) ||
+			   match(actualExcept->banstr, s2) ||
+			   match_cidr(actualExcept->banstr, s2) ||
+			   match_extban(actualExcept->banstr, who, chptr, CHFL_EXCEPTION) ||
+			   (s3 != NULL && match(actualExcept->banstr, s3)))
+			{
+				/* cache the fact theyre not banned */
+				if(msptr != NULL)
+				{
+					msptr->bants = chptr->bants;
+					msptr->flags &= ~CHFL_BANNED;
+				}
+
+				return CHFL_EXCEPTION;
+			}
+		}
+	}
+
+	/* cache the banned/not banned status */
+	if(msptr != NULL)
+	{
+		msptr->bants = chptr->bants;
+
+		if(actualBan != NULL)
+		{
+			msptr->flags |= CHFL_BANNED;
+			return CHFL_BAN;
+		}
+		else
+		{
+			msptr->flags &= ~CHFL_BANNED;
+			return 0;
+		}
+	}
+
+	return ((actualBan ? CHFL_BAN : 0));
 }
 
 /* can_join()
@@ -751,7 +876,7 @@ is_quieted(struct Channel *chptr, struct Client *who, struct membership *msptr,
  * caveats      - this function should only be called on a local user.
  */
 int
-can_join(struct Client *source_p, struct Channel *chptr, const char *key, const char **forward)
+can_join(struct Client *source_p, struct Channel *chptr, char *key, const char **forward)
 {
 	rb_dlink_node *invite = NULL;
 	rb_dlink_node *ptr;
@@ -821,7 +946,7 @@ can_join(struct Client *source_p, struct Channel *chptr, const char *key, const 
 				if(match(invex->banstr, src_host)
 				   || match(invex->banstr, src_iphost)
 				   || match_cidr(invex->banstr, src_iphost)
-			   	   || match_extban(invex->banstr, source_p, chptr, CHFL_INVEX)
+				   || match_extban(invex->banstr, source_p, chptr, CHFL_INVEX)
 				   || (use_althost && match(invex->banstr, src_althost)))
 					break;
 			}
@@ -838,7 +963,7 @@ can_join(struct Client *source_p, struct Channel *chptr, const char *key, const 
 	/* join throttling stuff --nenolod */
 	else if(chptr->mode.join_num > 0 && chptr->mode.join_time > 0)
 	{
-		if ((rb_current_time() - chptr->join_delta <=
+		if ((rb_current_time() - chptr->join_delta <= 
 			chptr->mode.join_time) && (chptr->join_count >=
 			chptr->mode.join_num))
 			i = ERR_THROTTLE;
@@ -874,7 +999,6 @@ can_send(struct Channel *chptr, struct Client *source_p, struct membership *mspt
 	hook_data_channel_approval moduledata;
 
 	moduledata.approved = CAN_SEND_NONOP;
-	moduledata.dir = MODE_QUERY;
 
 	if(IsServer(source_p) || IsService(source_p))
 		return CAN_SEND_OPV;
@@ -921,12 +1045,10 @@ can_send(struct Channel *chptr, struct Client *source_p, struct membership *mspt
 	if(is_chanop_voiced(msptr))
 		moduledata.approved = CAN_SEND_OPV;
 
+	moduledata.chptr = chptr;
 	moduledata.client = source_p;
-	moduledata.chptr = msptr->chptr;
 	moduledata.msptr = msptr;
 	moduledata.target = NULL;
-	moduledata.dir = (moduledata.approved == CAN_SEND_NO) ? MODE_ADD : MODE_QUERY;
-
 	call_hook(h_can_send, &moduledata);
 
 	return moduledata.approved;
@@ -936,7 +1058,7 @@ can_send(struct Channel *chptr, struct Client *source_p, struct membership *mspt
  * flood_attack_channel
  * inputs       - flag 0 if PRIVMSG 1 if NOTICE. RFC
  *                says NOTICE must not auto reply
- *              - pointer to source Client
+ *              - pointer to source Client 
  *		- pointer to target channel
  * output	- 1 if target is under flood attack
  * side effects	- check for flood attack on target chptr
@@ -1001,7 +1123,7 @@ find_bannickchange_channel(struct Client *client_p)
 	char src_host[NICKLEN + USERLEN + HOSTLEN + 6];
 	char src_iphost[NICKLEN + USERLEN + HOSTLEN + 6];
 
-	if (!MyClient(client_p))
+	if (!MyClient(client_p) || IsOverride(client_p))
 		return NULL;
 
 	rb_sprintf(src_host, "%s!%s@%s", client_p->name, client_p->username, client_p->host);
@@ -1144,7 +1266,7 @@ allocate_topic(struct Channel *chptr)
 
 	/* Basically we allocate one large block for the topic and
 	 * the topic info.  We then split it up into two and shove it
-	 * in the chptr
+	 * in the chptr 
 	 */
 	chptr->topic = ptr;
 	chptr->topic_info = (char *) ptr + TOPICLEN + 1;
@@ -1223,8 +1345,12 @@ channel_modes(struct Channel *chptr, struct Client *client_p)
 	*pbuf = '\0';
 
 	for (i = 0; i < 256; i++)
+       {
+		if(chmode_table[i].set_func == chm_hidden && !IsOper(client_p) && IsClient(client_p))
+			continue;
 		if(chptr->mode.mode & chmode_flags[i])
 			*mbuf++ = i;
+       }
 
 	if(chptr->mode.limit)
 	{
@@ -1251,8 +1377,7 @@ channel_modes(struct Channel *chptr, struct Client *client_p)
 					   chptr->mode.join_time);
 	}
 
-	if(*chptr->mode.forward &&
-			(ConfigChannel.use_forward || !IsClient(client_p)))
+	if(*chptr->mode.forward)
 	{
 		*mbuf++ = 'f';
 
@@ -1267,6 +1392,102 @@ channel_modes(struct Channel *chptr, struct Client *client_p)
 	return final;
 }
 
+/* Now lets do some stuff to keep track of what combinations of
+ * servers exist...
+ * Note that the number of combinations doubles each time you add
+ * something to this list. Each one is only quick if no servers use that
+ * combination, but if the numbers get too high here MODE will get too
+ * slow. I suggest if you get more than 7 here, you consider getting rid
+ * of some and merging or something. If it wasn't for irc+cs we would
+ * probably not even need to bother about most of these, but unfortunately
+ * we do. -A1kmm
+ */
+
+/* void init_chcap_usage_counts(void)
+ *
+ * Inputs	- none
+ * Output	- none
+ * Side-effects	- Initialises the usage counts to zero. Fills in the
+ *                chcap_yes and chcap_no combination tables.
+ */
+void
+init_chcap_usage_counts(void)
+{
+	unsigned long m, c, y, n;
+
+	memset(chcap_combos, 0, sizeof(chcap_combos));
+
+	/* For every possible combination */
+	for (m = 0; m < NCHCAP_COMBOS; m++)
+	{
+		/* Check each capab */
+		for (c = y = n = 0; c < NCHCAPS; c++)
+		{
+			if((m & (1 << c)) == 0)
+				n |= channel_capabs[c];
+			else
+				y |= channel_capabs[c];
+		}
+		chcap_combos[m].cap_yes = y;
+		chcap_combos[m].cap_no = n;
+	}
+}
+
+/* void set_chcap_usage_counts(struct Client *serv_p)
+ * Input: serv_p; The client whose capabs to register.
+ * Output: none
+ * Side-effects: Increments the usage counts for the correct capab
+ *               combination.
+ */
+void
+set_chcap_usage_counts(struct Client *serv_p)
+{
+	int n;
+
+	for (n = 0; n < NCHCAP_COMBOS; n++)
+	{
+		if(IsCapable(serv_p, chcap_combos[n].cap_yes) &&
+		   NotCapable(serv_p, chcap_combos[n].cap_no))
+		{
+			chcap_combos[n].count++;
+			return;
+		}
+	}
+
+	/* This should be impossible -A1kmm. */
+	s_assert(0);
+}
+
+/* void set_chcap_usage_counts(struct Client *serv_p)
+ *
+ * Inputs	- serv_p; The client whose capabs to register.
+ * Output	- none
+ * Side-effects	- Decrements the usage counts for the correct capab
+ *                combination.
+ */
+void
+unset_chcap_usage_counts(struct Client *serv_p)
+{
+	int n;
+
+	for (n = 0; n < NCHCAP_COMBOS; n++)
+	{
+		if(IsCapable(serv_p, chcap_combos[n].cap_yes) &&
+		   NotCapable(serv_p, chcap_combos[n].cap_no))
+		{
+			/* Hopefully capabs can't change dynamically or anything... */
+			s_assert(chcap_combos[n].count > 0);
+
+			if(chcap_combos[n].count > 0)
+				chcap_combos[n].count--;
+			return;
+		}
+	}
+
+	/* This should be impossible -A1kmm. */
+	s_assert(0);
+}
+
 /* void send_cap_mode_changes(struct Client *client_p,
  *                        struct Client *source_p,
  *                        struct Channel *chptr, int cap, int nocap)
@@ -1278,9 +1499,6 @@ channel_modes(struct Channel *chptr, struct Client *client_p)
  * Reverted back to my original design, except that we now keep a count
  * of the number of servers which each combination as an optimisation, so
  * the capabs combinations which are not needed are not worked out. -A1kmm
- *
- * Removed most code here because we don't need to be compatible with ircd
- * 2.8.21+CSr and stuff.  --nenolod
  */
 void
 send_cap_mode_changes(struct Client *client_p, struct Client *source_p,
@@ -1292,94 +1510,108 @@ send_cap_mode_changes(struct Client *client_p, struct Client *source_p,
 	char *pbuf;
 	const char *arg;
 	int dir;
+	int j;
+	int cap;
+	int nocap;
 	int arglen;
 
 	/* Now send to servers... */
-	mc = 0;
-	nc = 0;
-	pbl = 0;
-	parabuf[0] = 0;
-	pbuf = parabuf;
-	dir = MODE_QUERY;
-
-	mbl = preflen = rb_sprintf(modebuf, ":%s TMODE %ld %s ",
-				   use_id(source_p), (long) chptr->channelts,
-				   chptr->chname);
-
-	/* loop the list of - modes we have */
-	for (i = 0; i < mode_count; i++)
+	for (j = 0; j < NCHCAP_COMBOS; j++)
 	{
-		/* if they dont support the cap we need, or they do support a cap they
-		 * cant have, then dont add it to the modebuf.. that way they wont see
-		 * the mode
-		 */
-		if (mode_changes[i].letter == 0)
+		if(chcap_combos[j].count == 0)
 			continue;
 
-		if (!EmptyString(mode_changes[i].id))
-			arg = mode_changes[i].id;
-		else
-			arg = mode_changes[i].arg;
+		mc = 0;
+		nc = 0;
+		pbl = 0;
+		parabuf[0] = 0;
+		pbuf = parabuf;
+		dir = MODE_QUERY;
 
-		if(arg)
+		cap = chcap_combos[j].cap_yes;
+		nocap = chcap_combos[j].cap_no;
+
+		mbl = preflen = rb_sprintf(modebuf, ":%s TMODE %ld %s ",
+					   use_id(source_p), (long) chptr->channelts,
+					   chptr->chname);
+
+		/* loop the list of - modes we have */
+		for (i = 0; i < mode_count; i++)
 		{
-			arglen = strlen(arg);
-
-			/* dont even think about it! --fl */
-			if(arglen > MODEBUFLEN - 5)
+			/* if they dont support the cap we need, or they do support a cap they
+			 * cant have, then dont add it to the modebuf.. that way they wont see
+			 * the mode
+			 */
+			if((mode_changes[i].letter == 0) ||
+			   ((cap & mode_changes[i].caps) != mode_changes[i].caps)
+			   || ((nocap & mode_changes[i].nocaps) != mode_changes[i].nocaps))
 				continue;
+
+			if(!EmptyString(mode_changes[i].id))
+				arg = mode_changes[i].id;
+			else
+				arg = mode_changes[i].arg;
+
+			if(arg)
+			{
+				arglen = strlen(arg);
+
+				/* dont even think about it! --fl */
+				if(arglen > MODEBUFLEN - 5)
+					continue;
+			}
+
+			/* if we're creeping past the buf size, we need to send it and make
+			 * another line for the other modes
+			 * XXX - this could give away server topology with uids being
+			 * different lengths, but not much we can do, except possibly break
+			 * them as if they were the longest of the nick or uid at all times,
+			 * which even then won't work as we don't always know the uid -A1kmm.
+			 */
+			if(arg && ((mc == MAXMODEPARAMSSERV) ||
+				   ((mbl + pbl + arglen + 4) > (BUFSIZE - 3))))
+			{
+				if(nc != 0)
+					sendto_server(client_p, chptr, cap, nocap,
+						      "%s %s", modebuf, parabuf);
+				nc = 0;
+				mc = 0;
+
+				mbl = preflen;
+				pbl = 0;
+				pbuf = parabuf;
+				parabuf[0] = 0;
+				dir = MODE_QUERY;
+			}
+
+			if(dir != mode_changes[i].dir)
+			{
+				modebuf[mbl++] = (mode_changes[i].dir == MODE_ADD) ? '+' : '-';
+				dir = mode_changes[i].dir;
+			}
+
+			modebuf[mbl++] = mode_changes[i].letter;
+			modebuf[mbl] = 0;
+			nc++;
+
+			if(arg != NULL)
+			{
+				len = rb_sprintf(pbuf, "%s ", arg);
+				pbuf += len;
+				pbl += len;
+				mc++;
+			}
 		}
 
-		/* if we're creeping past the buf size, we need to send it and make
-		 * another line for the other modes
-		 * XXX - this could give away server topology with uids being
-		 * different lengths, but not much we can do, except possibly break
-		 * them as if they were the longest of the nick or uid at all times,
-		 * which even then won't work as we don't always know the uid -A1kmm.
-		 */
-		if(arg && ((mc == MAXMODEPARAMSSERV) ||
-			   ((mbl + pbl + arglen + 4) > (BUFSIZE - 3))))
-		{
-			if(nc != 0)
-				sendto_server(client_p, chptr, NOCAPS, NOCAPS,
-					      "%s %s", modebuf, parabuf);
-			nc = 0;
-			mc = 0;
+		if(pbl && parabuf[pbl - 1] == ' ')
+			parabuf[pbl - 1] = 0;
 
-			mbl = preflen;
-			pbl = 0;
-			pbuf = parabuf;
-			parabuf[0] = 0;
-			dir = MODE_QUERY;
-		}
-
-		if(dir != mode_changes[i].dir)
-		{
-			modebuf[mbl++] = (mode_changes[i].dir == MODE_ADD) ? '+' : '-';
-			dir = mode_changes[i].dir;
-		}
-
-		modebuf[mbl++] = mode_changes[i].letter;
-		modebuf[mbl] = 0;
-		nc++;
-
-		if(arg != NULL)
-		{
-			len = rb_sprintf(pbuf, "%s ", arg);
-			pbuf += len;
-			pbl += len;
-			mc++;
-		}
+		if(nc != 0)
+			sendto_server(client_p, chptr, cap, nocap, "%s %s", modebuf, parabuf);
 	}
-
-	if(pbl && parabuf[pbl - 1] == ' ')
-		parabuf[pbl - 1] = 0;
-
-	if(nc != 0)
-		sendto_server(client_p, chptr, NOCAPS, NOCAPS, "%s %s", modebuf, parabuf);
 }
 
-void
+void 
 resv_chan_forcepart(const char *name, const char *reason, int temp_time)
 {
 	rb_dlink_node *ptr;
@@ -1408,17 +1640,19 @@ resv_chan_forcepart(const char *name, const char *reason, int temp_time)
 			sendto_server(target_p, chptr, CAP_TS6, NOCAPS,
 			              ":%s PART %s", target_p->id, chptr->chname);
 
-			sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s PART %s :%s",
+			sendto_one(target_p, ":%s!%s@%s PART %s :%s", target_p->name, target_p->username, target_p->host, chptr->chname, target_p->name);
+
+			if (!is_delayed(msptr)) sendto_channel_local_butone(target_p, ALL_MEMBERS, chptr, ":%s!%s@%s PART %s :%s",
 			                     target_p->name, target_p->username,
 			                     target_p->host, chptr->chname, target_p->name);
 
-			remove_user_from_channel(msptr);
-
 			/* notify opers & user they were removed from the channel */
 			sendto_realops_snomask(SNO_GENERAL, L_ALL,
-			                     "Forced PART for %s!%s@%s from %s (%s)",
-			                     target_p->name, target_p->username,
-			                     target_p->host, name, reason);
+			                     "Forced PART for %s!%s@%s from %s (%s)%s",
+			                     target_p->name, target_p->username, 
+			                     target_p->host, name, reason, is_delayed(msptr) ? " (user was delayed entry; may not have been shown leaving)" : "");
+
+			remove_user_from_channel(msptr);
 
 			if(temp_time > 0)
 				sendto_one_notice(target_p, ":*** Channel %s is temporarily unavailable on this server.",
@@ -1427,5 +1661,125 @@ resv_chan_forcepart(const char *name, const char *reason, int temp_time)
 				sendto_one_notice(target_p, ":*** Channel %s is no longer available on this server.",
 				           name);
 		}
+	}
+}
+
+
+/*
+ * channel_metadata_add
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to add
+ *		- value of metadata item
+ *		- 1 if metadata should be propegated, 0 if not
+ * output	- none
+ * side effects - metadata is added to the channel in question
+ *		- metadata is propegated if propegate is set.
+ */
+struct Metadata *
+channel_metadata_add(struct Channel *target, const char *name, const char *value, int propegate)
+{
+	struct Metadata *md;
+
+	md = rb_malloc(sizeof(struct Metadata));
+	md->name = rb_strdup(name);
+	md->value = rb_strdup(value);
+
+	irc_dictionary_add(target->metadata, md->name, md);
+	
+	if(propegate)
+		sendto_match_servs(&me, "*", CAP_ENCAP, NOCAPS, "ENCAP * METADATA ADD %s %s :%s",
+				target->chname, name, value);
+
+	return md;
+}
+
+/*
+ * channel_metadata_time_add
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to add
+ *		- time_t you wish to add
+ *		- value you wish to add
+ * output	- none
+ * side effects - metadata is added to the channel in question
+ */
+struct Metadata *
+channel_metadata_time_add(struct Channel *target, const char *name, time_t timevalue, const char *value)
+{
+	struct Metadata *md;
+
+	md = rb_malloc(sizeof(struct Metadata));
+	md->name = rb_strdup(name);
+	md->value = rb_strdup(value);
+	md->timevalue = timevalue;
+
+	irc_dictionary_add(target->metadata, md->name, md);
+
+	return md;
+}
+
+/*
+ * channel_metadata_delete
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to delete
+ * output	- none
+ * side effects - metadata is deleted from the channel in question
+ * 		- deletion is propegated if propegate is set
+ */
+void
+channel_metadata_delete(struct Channel *target, const char *name, int propegate)
+{
+	struct Metadata *md = channel_metadata_find(target, name);
+
+	if(!md)
+		return;
+
+	irc_dictionary_delete(target->metadata, md->name);
+
+	rb_free(md);
+
+	if(propegate)
+		sendto_match_servs(&me, "*", CAP_ENCAP, NOCAPS, "ENCAP * METADATA DELETE %s %s",
+				target->chname, name);
+}
+
+/*
+ * channel_metadata_find
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to read
+ * output	- the requested metadata, if it exists, elsewise null.
+ * side effects - 
+ */
+struct Metadata *
+channel_metadata_find(struct Channel *target, const char *name)
+{
+	if(!target)
+		return NULL;
+
+	if(!target->metadata)
+		return NULL;
+
+	return irc_dictionary_retrieve(target->metadata, name);
+}
+
+/*
+ * channel_metadata_clear
+ * 
+ * inputs	- pointer to channel struct
+ * output	- none
+ * side effects - metadata is cleared from the channel in question
+ */
+void
+channel_metadata_clear(struct Channel *chptr)
+{
+	struct Metadata *md;
+	struct DictionaryIter iter;
+	
+	DICTIONARY_FOREACH(md, &iter, chptr->metadata)
+	{
+		channel_metadata_delete(chptr, md->name, 0);
 	}
 }

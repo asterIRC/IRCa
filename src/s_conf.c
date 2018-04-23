@@ -764,7 +764,7 @@ set_default_conf(void)
 	ConfigFileEntry.away_interval = 30;
 
 #ifdef HAVE_LIBZ
-	ConfigFileEntry.compression_level = 4;
+	ConfigFileEntry.compression_level = 7;
 #endif
 
 	ConfigFileEntry.oper_umodes = UMODE_LOCOPS | UMODE_SERVNOTICE |
@@ -779,11 +779,19 @@ set_default_conf(void)
 	ConfigChannel.knock_delay = 300;
 	ConfigChannel.knock_delay_channel = 60;
 	ConfigChannel.max_chans_per_user = 15;
-	ConfigChannel.max_bans = 25;
-	ConfigChannel.max_bans_large = 500;
+	ConfigChannel.max_bans = 200;
+	ConfigChannel.max_bans_large = 5000;
 	ConfigChannel.only_ascii_channels = NO;
 	ConfigChannel.burst_topicwho = NO;
 	ConfigChannel.kick_on_split_riding = NO;
+
+	ConfigChannel.chnampfxglobal = "#\"+";
+	ConfigChannel.chnampfxlocal = "'-";
+	ConfigChannel.chnampfxmodeless = "+-";
+	ConfigChannel.operprefix = "*";
+	ConfigChannel.qprefix = "~";
+	ConfigChannel.aprefix = "&";
+	ConfigChannel.hprefix = "%";
 
 	ConfigChannel.default_split_user_count = 15000;
 	ConfigChannel.default_split_server_count = 10;

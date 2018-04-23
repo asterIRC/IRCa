@@ -60,7 +60,7 @@ struct Channel
 	rb_dlink_list members;	/* channel members */
 	rb_dlink_list locmembers;	/* local channel members */
 
-	rb_dlink_list invites;
+rb_dlink_list invites;
 	rb_dlink_list banlist;
 	rb_dlink_list exceptlist;
 	rb_dlink_list invexlist;
@@ -73,15 +73,13 @@ struct Channel
 	unsigned int join_count;  /* joins within delta */
 	unsigned int join_delta;  /* last ts of join */
 
+	struct Dictionary *metadata;
+
 	unsigned long bants;
 	time_t channelts;
 	char *chname;
-
-	struct Client *last_checked_client;
-	time_t last_checked_ts;
-	unsigned int last_checked_type;
-	int last_checked_result;
 };
+
 
 struct membership
 {
@@ -94,15 +92,16 @@ struct membership
 	unsigned int flags;
 
 	unsigned long bants;
+	unsigned long override_ts;
 };
 
 #define BANLEN 195
 struct Ban
 {
 	char *banstr;
+	char *forward;
 	char *who;
 	time_t when;
-	char *forward;
 	rb_dlink_node node;
 };
 
@@ -118,7 +117,18 @@ struct ChModeChange
 	const char *arg;
 	const char *id;
 	int dir;
+	int caps;
+	int nocaps;
 	int mems;
+	int override;
+	struct Client *client;
+};
+
+struct ChCapCombo
+{
+	int count;
+	int cap_yes;
+	int cap_no;
 };
 
 typedef void (*ChannelModeFunc)(struct Client *source_p, struct Channel *chptr,
@@ -140,52 +150,61 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define CAN_SEND_OPV	2
 
 /* channel status flags */
-#define CHFL_PEON	0x0000	/* normal member of channel */
-#define CHFL_VOICE      0x0001	/* the power to speak */
-#define CHFL_CHANOP	0x0002	/* Channel operator */
-#define CHFL_HALFOP	0x0004	/* Channel super-voice - may do
-                                         * most things an op can */
+#define CHFL_PEON		0x0000	/* normal member of channel */
+#define CHFL_VOICE      	0x0001	/* the power to speak */
+#define CHFL_HALFOP	     	0x0002	/* Channel operator */
+#define CHFL_CHANOP	     	0x0004	/* Channel operator */
+#define CHFL_SUPEROP	     	0x0080	/* Channel operator */
+#define CHFL_SOP	     	0x0080	/* Channel operator */
+#define CHFL_QOP	     	0x0200	/* Channel operator */
+#define CHFL_BOP	     	0x0400	/* Channel operator */
+#define CHFL_DELAYED    	0x0800	/* Join delayed -- do not propagate nor show to clients because this mode has no letter. Delays may speak if not otherwise prohibited. */
 
-#define CHFL_BANNED	0x0008  /* cached as banned */
-#define CHFL_QUIETED	0x0010  /* cached as being +q victim */
-#define CHFL_DELAY	0x0040  // hiding user from channel lists
-#define CHFL_SUPEROP	0x0080  // some services use this for SOP
-#define CHFL_MANAGER	0x0100	// "owns" ch - dep serv conf, netstaff
-                                // may be shown higher
-#define CHFL_OPERBIZ	0x0200	// network staff joining on network business
-                                // will be settable if user is staffer & chan
-                                // is NOT c+V
-#define ONLY_SERVERS		0x0020
+#define CHFL_BANNED		0x000008  /* cached as banned */
+#define CHFL_QUIETED		0x000010  /* cached as being +q victim */
+#define ONLY_SERVERS		0x000020
+#define ONLY_OPERS		0x000040
 #define ALL_MEMBERS		CHFL_PEON
-#define ONLY_CHANOPS		(CHFL_CHANOP|CHFL_SUPEROP|CHFL_MANAGER)
-#define ONLY_CHANOPSVOICED	(CHFL_CHANOP|CHFL_VOICE|CHFL_HALFOP|CHFL_SUPEROP|CHFL_MANAGER)
+#define ONLY_CHANOPS		(CHFL_SUPEROP|CHFL_QOP|CHFL_BOP|CHFL_CHANOP)
+#define ONLY_CHANOPSVOICED	(CHFL_HALFOP|CHFL_SUPEROP|CHFL_QOP|CHFL_BOP|CHFL_CHANOP|CHFL_VOICE)
 
-#define is_operbiz(x)	((x) && (x)->flags & CHFL_OPERBIZ)
-#define is_manager(x)	((x) && (x)->flags & CHFL_MANAGER)
-#define is_superop(x)	((x) && (x)->flags & CHFL_SUPEROP)
-#define is_chanop(x)	((x) && (x)->flags & CHFL_CHANOP)
-#define is_halfop(x)	((x) && (x)->flags & CHFL_HALFOP)
-#define is_voiced(x)	((x) && (x)->flags & CHFL_VOICE)
-#define is_chanop_voiced(x) ((x) && (x)->flags & (ONLY_CHANOPSVOICED))
+#define is_halfop(x)	((x) && ((x)->flags & CHFL_HALFOP))
+#define is_chanop(x)	((x) && ((x)->flags & CHFL_CHANOP))
+#define is_superop(x)	((x) && ((x)->flags & CHFL_SUPEROP))
+#define is_sop(x)	((x) && ((x)->flags & CHFL_SUPEROP))
+#define is_qop(x)	((x) && ((x)->flags & CHFL_QOP))
+#define is_botop(x)	((x) && ((x)->flags & CHFL_BOP))
+#define is_bop(x)	((x) && ((x)->flags & CHFL_BOP))
+#define is_voiced(x)	(x) && ((x)->flags & CHFL_VOICE)
+#define is_delayed(x)	((x) && ((x)->flags & CHFL_DELAYED))
+#define is_chanop_voiced(x) ((x) && (x)->flags & (CHFL_HALFOP|CHFL_SUPEROP|CHFL_QOP|CHFL_BOP|CHFL_CHANOP|CHFL_VOICE))
+//#define is_any_op(x) ((x) && (x)->flags & (CHFL_HALFOP|CHFL_SUPEROP|CHFL_QOP|CHFL_BOP|CHFL_CHANOP))
 #define can_send_banned(x) ((x) && (x)->flags & (CHFL_BANNED|CHFL_QUIETED))
 
 /* channel modes ONLY */
-#define MODE_PRIVATE    0x0001
-#define MODE_SECRET     0x0002
-#define MODE_MODERATED  0x0004
-#define MODE_TOPICLIMIT 0x0008
-#define MODE_INVITEONLY 0x0010
-#define MODE_NOPRIVMSGS 0x0020
-#define MODE_REGONLY	0x0040
-#define MODE_EXLIMIT	0x0100  /* extends list limits, +b/+e/+I/+M */
-#define MODE_PERMANENT  0x0200  /* permanant channel, +r */
-#define MODE_OPMODERATE 0x0400  /* send rejected messages to ops */
-#define MODE_FREEINVITE 0x0800  /* allow free use of /invite */
-#define MODE_FREETARGET 0x1000  /* can be forwarded to without authorization */
-#define MODE_DISFORWARD 0x2000  /* disable channel forwarding */
-#define MODE_CHANDELAY  0x4000  /* +D - delay joins until user speaks. */
-#define PREFIX_CHANDELAY "<"	// like the configchannel prefixes. waste here is good news there.
-				// except we don't vary our value at all.
+#define MODE_PRIVATE    0x00001
+#define MODE_SECRET     0x00002
+#define MODE_MODERATED  0x00004
+#define MODE_TOPICLIMIT 0x00008
+#define MODE_INVITEONLY 0x00010
+#define MODE_NOPRIVMSGS 0x00020
+#define MODE_REGONLY	0x00040
+#define MODE_NOCOLOR	0x00080
+#define MODE_EXLIMIT	0x00100  /* exempt from list limits, +b/+e/+I/+q */
+#define MODE_PERMANENT  0x00200  /* permanant channel, +P */
+#define MODE_OPMODERATE 0x00400  /* send rejected messages to ops */
+#define MODE_FREEINVITE 0x00800  /* allow free use of /invite */
+#define MODE_FREETARGET 0x01000  /* can be forwarded to without authorization */
+#define MODE_DISFORWARD 0x02000  /* disable channel forwarding */
+#define MODE_NOOPERKICK 0x04000  /* disallow kicking opers */
+#define MODE_NOCTCP     0x08000  /* Block CTCPs directed to this channel */
+#define MODE_NONOTICE   0x10000  /* Block NOTICEs directed to this channel */
+#define MODE_REGCHAN    0x20000  /* Channel is registered and will show up in /CLIST if that ever gets implemented. */
+#define MODE_ANONMSGS   0x40000  /* Messages sent to channel will not carry the source of the message. Only chanops will receive join, mode, and part messages, and
+                                    only chanops will be privy to the nicklist. Chanops will receive the source of the message.
+                                    --ellenor@umbrellix.net */
+#define MODE_DELAYJOIN	0x80000  // Joins while the mode is set will be delayed until an operation is committed. If a delayed
+				 // user parts before joining, they are seen as having never joined.
 
 #define CHFL_BAN        0x10000000	/* ban channel flag */
 #define CHFL_EXCEPTION  0x20000000	/* exception to ban channel flag */
@@ -201,23 +220,16 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define HiddenChannel(x)        ((x) && ((x)->mode.mode & MODE_PRIVATE))
 #define PubChannel(x)           ((!x) || ((x)->mode.mode &\
                                  (MODE_PRIVATE | MODE_SECRET)) == 0)
-
+#define AnonChannel(x)          ((x) && ((x)->mode.mode & MODE_ANONMSGS))
 /* channel visible */
 #define ShowChannel(v,c)        (PubChannel(c) || IsMember((v),(c)))
+/* user visible in channel */
+#define ShowInChannel(v,t,c)    ((PubChannel(c) && !IsInvisible(t)) || IsMember((v),(c)))
 
 #define IsMember(who, chan) ((who && who->user && \
                 find_channel_membership(chan, who)) ? 1 : 0)
 
-#define IsChannelName(name)	((name) && ( \
-		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
-		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL || \
-		strchr(ConfigChannel.chnampfxmodeless, *(name)) != NULL))
-#define ChannelHasModes(name)	((name) && ( \
-		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
-		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL) && ( \
-		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL))
-#define ChannelIsLocal(name)	((name) && ( \
-		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL))
+#define IsChannelName(name) ((name) && (*(name) == '#' || *(name) == '&' || *(name) == '"' || (strlen(name) != 9 && isnumonly(name) && strtoul(name, NULL, 10) != 0)))
 
 /* extban function results */
 #define EXTBAN_INVALID -1  /* invalid mask, false even if negated */
@@ -235,19 +247,22 @@ void free_ban(struct Ban *bptr);
 
 extern void destroy_channel(struct Channel *);
 
-extern int can_send(struct Channel *chptr, struct Client *who,
+extern int can_send(struct Channel *chptr, struct Client *who, 
 		    struct membership *);
+extern int isnumonly(const char *);
 extern int flood_attack_channel(int p_or_n, struct Client *source_p,
 				struct Channel *chptr, char *chname);
 extern int is_banned(struct Channel *chptr, struct Client *who,
-		    struct membership *msptr, const char *, const char *, const char **);
+		     struct membership *msptr, const char *, const char *, const char **);
 extern int is_quieted(struct Channel *chptr, struct Client *who,
 		     struct membership *msptr, const char *, const char *);
-extern int can_join(struct Client *source_p, struct Channel *chptr,
-		    const char *key, const char **forward);
+extern int can_join(struct Client *source_p, struct Channel *chptr, char *key, const char **forward);
+extern int is_any_op(struct membership *msptr);
+extern int get_optype(struct membership *msptr);
 
 extern struct membership *find_channel_membership(struct Channel *, struct Client *);
 extern const char *find_channel_status(struct membership *msptr, int combine);
+extern const char *find_channel_status_server(struct membership *msptr, int combine);
 extern void add_user_to_channel(struct Channel *, struct Client *, int flags);
 extern void remove_user_from_channel(struct membership *);
 extern void remove_user_from_channels(struct Client *);
@@ -256,9 +271,10 @@ extern void invalidate_bancache_user(struct Client *);
 extern void free_channel_list(rb_dlink_list *);
 
 extern int check_channel_name(const char *name);
+extern int is_better_op(struct membership *,struct membership *);
 
 extern void channel_member_names(struct Channel *chptr, struct Client *,
-				 int show_eon);
+				 int show_eon, int delayed);
 
 extern void del_invite(struct Channel *chptr, struct Client *who);
 
@@ -289,10 +305,9 @@ extern void set_channel_mlock(struct Client *client_p, struct Client *source_p,
 extern struct ChannelMode chmode_table[256];
 
 extern int add_id(struct Client *source_p, struct Channel *chptr, const char *banid,
-	const char *forward, rb_dlink_list * list, long mode_type);
+       const char *forward, rb_dlink_list * list, long mode_type);
 
-extern struct Ban * del_id(struct Channel *chptr, const char *banid, rb_dlink_list * list,
-	long mode_type);
+extern struct Ban * del_id(struct Channel *chptr, const char *banid, rb_dlink_list * list, long mode_type);
 
 extern ExtbanFunc extban_table[256];
 
@@ -300,8 +315,15 @@ extern int match_extban(const char *banstr, struct Client *client_p, struct Chan
 extern int valid_extban(const char *banstr, struct Client *client_p, struct Channel *chptr, long mode_type);
 const char * get_extban_string(void);
 
-extern int get_channel_access(struct Client *source_p, struct membership *msptr, int dir);
+extern int get_channel_access(struct Client *source_p, struct membership *msptr);
 
-extern void send_channel_join(struct Channel *chptr, struct Client *client_p);
+extern void send_channel_join(int isnew, struct Channel *chptr, struct Client *client_p);
+
+extern struct Metadata *channel_metadata_add(struct Channel *target, const char *name, const char *value, int propegate);
+extern struct Metadata *channel_metadata_time_add(struct Channel *target, const char *name, time_t timevalue, const char *value);
+extern void channel_metadata_delete(struct Channel *target, const char *name, int propegate);
+extern struct Metadata *channel_metadata_find(struct Channel *target, const char *name);
+extern void channel_metadata_clear(struct Channel *target);
+
 
 #endif /* INCLUDED_channel_h */

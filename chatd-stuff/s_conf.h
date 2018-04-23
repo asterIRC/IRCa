@@ -63,12 +63,13 @@ struct ConfItem
 	{
 		char *name;	/* IRC name, nick, server name, or original u@h */
 		const char *oper;
+		char *name2;		/* IRC name, nick, server name, or original u@h */
+		char *webircname;
 	} info;
 	char *host;		/* host part of user@host */
 	char *passwd;		/* doubles as kline reason *ugh* */
 	char *spasswd;		/* Password to send. */
 	char *user;		/* user part of user@host */
-	char *webircname;	// webirc support
 	int port;
 	time_t hold;		/* Hold action until this time (calendar time) */
 	time_t created;		/* Creation time (for klines etc) */
@@ -76,6 +77,10 @@ struct ConfItem
 	char *className;	/* Name of class */
 	struct Class *c_class;	/* Class of connection */
 	rb_patricia_node_t *pnode;	/* Our patricia node */
+	char *name;	/* IRC name, nick, server name, or original u@h */
+	const char *oper;
+	char *name2;		/* IRC name, nick, server name, or original u@h */
+	char *webircname;
 };
 
 #define CONF_ILLEGAL            0x80000000
@@ -111,11 +116,11 @@ struct ConfItem
 #define CONF_FLAGS_EXEMPTSHIDE		0x00010000
 #define CONF_FLAGS_EXEMPTJUPE		0x00020000	/* exempt from resv generating warnings */
 #define CONF_FLAGS_NEED_SASL		0x00040000
-#define CONF_FLAGS_ENCRYPTED            0x00200000
-#define CONF_FLAGS_EXEMPTDNSBL		0x04000000
-#define CONF_FLAGS_SPOOF_WEBCHAT	0x08000000	// will be a webirc client once we're done
-		// with her
-
+#define CONF_FLAGS_EXTEND_CHANS		0x00080000
+#define CONF_FLAGS_ENCRYPTED            0x00100000
+#define CONF_FLAGS_EXEMPTDNSBL		0x00200000
+#define CONF_FLAGS_SPOOF_WEBCHAT        0x00400000
+#define CONF_FLAGS_USE_USER_IDENT       0x01000000 //jump because of temporary being not-cleared-out...
 
 /* Macros for struct ConfItem */
 #define IsConfBan(x)		((x)->status & (CONF_KILL|CONF_XLINE|CONF_DLINE|\
@@ -130,13 +135,15 @@ struct ConfItem
 #define IsConfExemptShide(x)	((x)->flags & CONF_FLAGS_EXEMPTSHIDE)
 #define IsConfExemptJupe(x)	((x)->flags & CONF_FLAGS_EXEMPTJUPE)
 #define IsConfExemptResv(x)	((x)->flags & CONF_FLAGS_EXEMPTRESV)
-#define IsConfDoSpoofIp(x)      ((x)->flags & CONF_FLAGS_SPOOF_IP)
 #define IsConfDoSpoofWebchat(x) ((x)->flags & CONF_FLAGS_SPOOF_WEBCHAT)
+#define IsConfDoSpoofIp(x)      ((x)->flags & CONF_FLAGS_SPOOF_IP)
 #define IsConfSpoofNotice(x)    ((x)->flags & CONF_FLAGS_SPOOF_NOTICE)
 #define IsConfEncrypted(x)      ((x)->flags & CONF_FLAGS_ENCRYPTED)
 #define IsNeedSasl(x)		((x)->flags & CONF_FLAGS_NEED_SASL)
 #define IsConfExemptDNSBL(x)	((x)->flags & CONF_FLAGS_EXEMPTDNSBL)
+#define IsConfExtendChans(x)	((x)->flags & CONF_FLAGS_EXTEND_CHANS)
 #define IsConfSSLNeeded(x)	((x)->flags & CONF_FLAGS_NEED_SSL)
+#define IsConfUseUserIdent(x)	((x)->flags & CONF_FLAGS_USE_USER_IDENT)
 
 /* flag definitions for opers now in client.h */
 
@@ -145,15 +152,27 @@ struct config_file_entry
 	const char *dpath;	/* DPATH if set from command line */
 	const char *configfile;
 
+	char *egdpool_path;
+
+	char *default_helpopstring;
 	char *default_operstring;
 	char *default_adminstring;
+	char *default_netadminstring;
+	char *default_helperstring;
 	char *servicestring;
 	char *kline_reason;
 
+	int kline_prefixing;
+	int kline_suffixing;
+	int kline_timesuffixing;
+
+	char *kline_prefix;
+	char *kline_suffix;
+	char *kline_timesuffix;
+
 	char *identifyservice;
 	char *identifycommand;
-
-	char *sasl_service;
+	char *cloak_key;
 
 	char *fname_userlog;
 	char *fname_fuserlog;
@@ -210,10 +229,12 @@ struct config_file_entry
 	int min_nonwildcard_simple;
 	int default_floodcount;
 	int default_ident_timeout;
+	int use_egd;
 	int ping_cookie;
 	int tkline_expire_notices;
 	int use_whois_actually;
 	int disable_auth;
+	int post_registration_delay;
 	int connect_timeout;
 	int burst_away;
 	int reject_ban_time;
@@ -223,13 +244,12 @@ struct config_file_entry
 	int throttle_duration;
 	int target_change;
 	int collision_fnc;
-	int resv_fnc;
 	int default_umodes;
 	int global_snotices;
 	int operspy_dont_care_user_info;
+	int operhide;
+	int expire_override_time;
 	int use_propagated_bans;
-	int max_ratelimit_tokens;
-	int away_interval;
 
 	int client_flood_max_lines;
 	int client_flood_burst_rate;
@@ -237,45 +257,35 @@ struct config_file_entry
 	int client_flood_message_time;
 	int client_flood_message_num;
 
-	unsigned int nicklen;
-	int certfp_method;
 };
 
 struct config_channel_entry
 {
 	int use_except;
 	int use_invex;
-	int use_forward;
 	int use_knock;
 	int knock_delay;
 	int knock_delay_channel;
+	char *automodes;
+	char *autotopic;
 	int max_bans;
 	int max_bans_large;
 	int max_chans_per_user;
+	int max_chans_per_user_large;
 	int no_create_on_split;
 	int no_join_on_split;
 	int default_split_server_count;
 	int default_split_user_count;
 	int burst_topicwho;
 	int kick_on_split_riding;
+	int disable_local_channels;
 	int only_ascii_channels;
 	int resv_forcepart;
 	int channel_target_change;
-	int disable_local_channels;
-	unsigned int autochanmodes;
-	int displayed_usercount;
-	char chnampfxglobal[49];
-	char chnampfxlocal[49];
-	// not expecting more than  chnampfx
-	char chnampfxmodeless[49];
-	char chnampfx[145]; // shouldn't ever need use except in 005
-
-	char halfopscannotuse[149]; // shouldn't ever need more than 148 modes ... ?!
-
-	char operprefix[2]; // waste here allows for optimised
-	char qprefix[2];    // code over in channel.c et alia
-	char aprefix[2];
-	char hprefix[2];
+	char *qprefix;
+	char *mprefix;
+	char *aprefix;
+	char *hprefix;
 };
 
 struct config_server_hide
@@ -286,12 +296,21 @@ struct config_server_hide
 	int disable_hidden;
 };
 
+struct motd_info
+{
+	char *motd;
+	char *shortmotd;
+	char *rules;
+	char *opermotd;
+};
+
 struct server_info
 {
 	char *name;
 	char sid[4];
 	char *description;
 	char *network_name;
+	char *network_desc;
 	int hub;
 	struct sockaddr_in ip;
 	int default_max_clients;
@@ -306,7 +325,6 @@ struct server_info
 	char *ssl_ca_cert;
 	char *ssl_cert;
 	char *ssl_dh_params;
-	char *ssl_cipher_list;
 	int ssld_count;
 };
 
@@ -321,6 +339,7 @@ struct alias_entry
 {
 	char *name;
 	char *target;
+	char *prefix;
 	int flags;			/* reserved for later use */
 	int hits;
 };
@@ -357,7 +376,7 @@ extern struct ConfItem *make_conf(void);
 extern void free_conf(struct ConfItem *);
 
 extern rb_dlink_node *find_prop_ban(unsigned int status, const char *user, const char *host);
-extern void deactivate_conf(struct ConfItem *, rb_dlink_node *, time_t);
+extern void deactivate_conf(struct ConfItem *, rb_dlink_node *);
 extern void replace_old_ban(struct ConfItem *);
 
 extern void read_conf_files(int cold);
@@ -370,7 +389,7 @@ extern int detach_conf(struct Client *);
 extern struct ConfItem *find_tkline(const char *, const char *, struct sockaddr *);
 extern char *show_iline_prefix(struct Client *, struct ConfItem *, char *);
 extern void get_printable_conf(struct ConfItem *,
-			       char **, char **, const char **, char **, int *, char **);
+			       char **, char **, char **, char **, int *, char **);
 extern char *get_user_ban_reason(struct ConfItem *aconf);
 extern void get_printable_kline(struct Client *, struct ConfItem *,
 				char **, char **, char **, char **);
