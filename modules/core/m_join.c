@@ -818,7 +818,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 			}
 			else if(*s == '@')
 			{
-				fl |= CHFL_OP;
+				fl |= CHFL_CHANOP;
 				s++;
 			}
 			else if(*s == '%')
@@ -1109,7 +1109,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
                                 para[pargs++] = target_p->name;
                         }
                 }
-                else if(fl & CHFL_SUPER)
+                else if(fl & CHFL_SUPEROP)
 		{
 			*mbuf++ = 'a';
 			para[pargs++] = target_p->name;
