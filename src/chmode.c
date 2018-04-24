@@ -2203,7 +2203,7 @@ is_better_op(struct membership *source, struct membership *target)
                 return 0;
         if(is_halfop(source) && is_halfop(target) && (strchr(ConfigChannel.halfopscannotuse, 'h') != NULL))
                 return 0;
-        if(!is_any_op(source))
+        if(!is_any_op(source) && !is_halfop(source))
                 return 0;
 
         return 1;
