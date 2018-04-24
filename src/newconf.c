@@ -1677,8 +1677,10 @@ conf_set_general_default_umodes(void *data)
 			break;
 
 		/* don't allow +o */
+		case 'a':
 		case 'o':
 		case 'S':
+		case 'T':
 		case 'Z':
 		case ' ':
 			break;
@@ -1799,6 +1801,32 @@ conf_set_service_name(void *data)
 	tmp = rb_strdup(data);
 	rb_dlinkAddAlloc(tmp, &service_list);
 }
+
+static void conf_set_strdup (char *cfgname, int maxlen, char **targvar, char *value) {
+	char errmsg[BUFSIZE]; int actlen
+	if ((actlen = strlen(value)) >maxlen) {
+		rb_snprintf(errmsg, BUFSIZE-1, "Ignoring %s -- value length %i exceeds maximum %i", cfgname, actlen, maxlen);
+		conf_report_error(errmsg);
+		return;
+	}
+	*targvar = rb_strdup(value); // pointer to the pointer, wuhu
+}
+
+#define strdup_cfg_entry(sy, nm, l, tv) static void \
+	sy (void *data) \
+	{ \
+		conf_set_strdup( (nm) , (l) , & (tv), (char *)data); \
+		return;\
+	};
+
+strdup_cfg_entry(conf_set_network_operprefix, "network::prefix_operbiz", 1, &ConfigChannel.operprefix);
+strdup_cfg_entry(conf_set_network_qprefix, "network::prefix_owner", 1, &ConfigChannel.qprefix);
+strdup_cfg_entry(conf_set_network_aprefix, "network::prefix_admin", 1, &ConfigChannel.aprefix);
+strdup_cfg_entry(conf_set_network_hprefix, "network::prefix_halfop", 1, &ConfigChannel.hprefix);
+strdup_cfg_entry(conf_set_network_nohalfops, "network::modes_disabled_for_halfops", 1, &ConfigChannel.halfopscannotuse);
+strdup_cfg_entry(conf_set_network_globalchan, "network::global_chantypes", 1, &ConfigChannel.chnampfxglobal);
+strdup_cfg_entry(conf_set_network_localchan, "network::local_chantypes", 1, &ConfigChannel.chnampfxlocal);
+strdup_cfg_entry(conf_set_network_modeless, "network::modeless_chantypes", 1, &ConfigChannel.chnampfxmodeless);
 
 static int
 conf_begin_alias(struct TopConf *tc)
@@ -2516,14 +2544,14 @@ static struct ConfEntry conf_network_table[] =
 	{ "use_except",		CF_YESNO, NULL, 0, &ConfigChannel.use_except		},
 	{ "use_invex",		CF_YESNO, NULL, 0, &ConfigChannel.use_invex		},
 	{ "use_forward",	CF_YESNO, NULL, 0, &ConfigChannel.use_forward		},
-	{ "global_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxglobal	},
-	{ "local_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxlocal		},
-	{ "modeless_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxmodeless	},
-	{ "modes_disabled_for_halfops",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.halfopscannotuse	},
-	{ "prefix_operbiz",	CF_QSTRING, NULL, 2, &ConfigChannel.operprefix	},
-	{ "prefix_owner",	CF_QSTRING, NULL, 2, &ConfigChannel.qprefix	},
-	{ "prefix_admin",	CF_QSTRING, NULL, 2, &ConfigChannel.aprefix	},
-	{ "prefix_halfop",	CF_QSTRING, NULL, 2, &ConfigChannel.hprefix	},
+	{ "global_chantypes",	CF_QSTRING, conf_set_network_globalchan, 0, NULL	},
+	{ "local_chantypes",	CF_QSTRING, conf_set_network_localchan, 0, NULL	},
+	{ "modeless_chantypes",	CF_QSTRING, conf_set_network_modeless, 0, NULL	},
+	{ "modes_disabled_for_halfops",	CF_QSTRING, conf_set_network_nohalfops, 0, NULL	},
+	{ "prefix_operbiz",	CF_QSTRING, conf_set_network_operprefix, 0, NULL	},
+	{ "prefix_owner",	CF_QSTRING, conf_set_network_qprefix, 0, NULL	},
+	{ "prefix_admin",	CF_QSTRING, conf_set_network_aprefix, 0, NULL	},
+	{ "prefix_halfop",	CF_QSTRING, conf_set_network_hprefix, 0, NULL	},
 	{ "burst_away",		CF_YESNO, NULL, 0, &ConfigFileEntry.burst_away		},
 	{ "channel_target_change", CF_YESNO, NULL, 0, &ConfigChannel.channel_target_change	},
 	{ "disable_local_channels", CF_YESNO, NULL, 0, &ConfigChannel.disable_local_channels },
