@@ -239,6 +239,7 @@ struct config_file_entry
 
 	unsigned int nicklen;
 	int certfp_method;
+	int hide_certfp;
 };
 
 struct config_channel_entry
@@ -264,6 +265,7 @@ struct config_channel_entry
 	int channel_target_change;
 	int disable_local_channels;
 	unsigned int autochanmodes;
+	unsigned int modelessmodes;
 	int displayed_usercount;
 	char *chnampfxglobal;
 	char *chnampfxlocal;
@@ -321,6 +323,7 @@ struct alias_entry
 {
 	char *name;
 	char *target;
+	char *prefix;
 	int flags;			/* reserved for later use */
 	int hits;
 };

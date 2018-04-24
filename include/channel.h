@@ -93,6 +93,8 @@ struct Channel
 	time_t last_checked_ts;
 	unsigned int last_checked_type;
 	int last_checked_result;
+
+	struct Dictionary *metadata;
 };
 
 struct membership
@@ -224,11 +226,13 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define IsChannelName(name)	((name) && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL || \
-		strchr(ConfigChannel.chnampfxmodeless, *(name)) != NULL))
+		strchr(ConfigChannel.chnampfxmodeless, *(name)) != NULL) && (\
+		strlen(name) != 9 || !IsDigit(*(name))))
 #define ChannelHasModes(name)	((name) && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL) && ( \
-		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL))
+		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL) && (\
+		strlen(name) != 9 || !IsDigit(*(name)))
 #define ChannelIsLocal(name)	((name) && ( \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL))
 
@@ -269,6 +273,7 @@ extern void invalidate_bancache_user(struct Client *);
 extern void free_channel_list(rb_dlink_list *);
 
 extern int check_channel_name(const char *name);
+extern int is_better_op(struct membership *,struct membership *);
 
 extern void channel_member_names(struct Channel *chptr, struct Client *,
 				 int show_eon, int delay);
@@ -316,5 +321,11 @@ const char * get_extban_string(void);
 extern int get_channel_access(struct Client *source_p, struct membership *msptr, int dir);
 
 extern void send_channel_join(int isnew, struct Channel *chptr, struct Client *client_p);
+
+extern struct Metadata *channel_metadata_add(struct Channel *target, const char *name, const char *value, int propegate);
+extern struct Metadata *channel_metadata_time_add(struct Channel *target, const char *name, time_t timevalue, const char *value);
+extern void channel_metadata_delete(struct Channel *target, const char *name, int propegate);
+extern struct Metadata *channel_metadata_find(struct Channel *target, const char *name);
+extern void channel_metadata_clear(struct Channel *target);
 
 #endif /* INCLUDED_channel_h */

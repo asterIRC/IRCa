@@ -41,7 +41,7 @@ DECLARE_MODULE_AV1(metadata, NULL, NULL, metadata_clist, NULL, NULL, "$Revision$
 static int
 me_metadata(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
-	if(IsChannelName(parv[2]))
+	if(IsChannelName(parv[2]) && !ChannelIsLocal(parv[2]))
 	{
 		struct Channel *chptr;
 
@@ -80,7 +80,7 @@ me_metadata(struct Client *client_p, struct Client *source_p, int parc, const ch
 static int
 m_metadata(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
-	if(!check_channel_name(parv[2]))
+	if(!IsChannelName(parv[2]))
 	{
 		sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[3]);
 		return 0;

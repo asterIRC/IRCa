@@ -302,7 +302,7 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 
 				tlen = rb_sprintf(t, "%s%s%s%s ",
 						hdata.approved ? "" : "!",
-						is_delayed(msptr),
+						is_delayed(msptr) ? PREFIX_CHANDELAY : "",
 						find_channel_status(msptr, 1),
 						chptr->chname);
 				t += tlen;

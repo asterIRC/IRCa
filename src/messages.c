@@ -144,6 +144,7 @@ numerics[351] = "%s(%s,%s). %s :%s TS%dow %s";
 #endif
 numerics[352] = ":%s 352 %s %s %s %s %s %s %s :%d %s";
 numerics[353] = ":%s 353 %s %s %s :";
+numerics[355] = ":%s 355 %s %s %s :";
 numerics[360] = ":%s 360 %s %s :was connecting from *@%s %s";
 numerics[362] = ":%s 362 %s %s :Closed. Status = %d";
 numerics[363] = ":%s 363 %s %d :Connections Closed";

@@ -1836,6 +1836,8 @@ conf_begin_alias(struct TopConf *tc)
 	if (conf_cur_block_name != NULL)
 		yy_alias->name = rb_strdup(conf_cur_block_name);
 
+	yy_alias->prefix = "";
+
 	yy_alias->flags = 0;
 	yy_alias->hits = 0;
 
@@ -1888,6 +1890,53 @@ conf_set_alias_target(void *data)
 
 	yy_alias->target = rb_strdup(data);
 }
+
+static void
+conf_set_alias_prefix(void *data)
+{
+	if (data == NULL || yy_alias == NULL)	/* this shouldn't ever happen */
+		return;
+
+	yy_alias->prefix = rb_strdup(data);
+}
+
+static void
+conf_set_channel_modelessmodes(void *data)
+{
+	char *pm;
+	int what = MODE_ADD;
+
+	ConfigChannel.modelessmodes = 0;
+	for (pm = (char *) data; *pm; pm++)
+	{
+		switch (*pm)
+		{
+		case '+':
+			what = MODE_ADD;
+			break;
+		case '-':
+			what = MODE_DEL;
+			break;
+
+		default:
+			if (chmode_table[(unsigned char) *pm].set_func == chm_simple)
+			{
+				if (what == MODE_ADD)
+					ConfigChannel.modelessmodes |= chmode_table[(unsigned char) *pm].mode_type;
+				else
+					ConfigChannel.modelessmodes &= ~chmode_table[(unsigned char) *pm].mode_type;
+			}
+			else
+			{
+				conf_report_error("channel::modelessmodes -- Invalid channel mode %c", *pm);
+				continue;
+			}
+			break;
+		}
+	}
+}
+
+
 
 static void
 conf_set_channel_autochanmodes(void *data)
@@ -2419,6 +2468,7 @@ static struct ConfEntry conf_auth_table[] =
 	{ "password",	CF_QSTRING, conf_set_auth_passwd,	0, NULL },
 	{ "class",	CF_QSTRING, conf_set_auth_class,	0, NULL },
 	{ "spoof",	CF_QSTRING, conf_set_auth_spoof,	0, NULL },
+	{ "webircname",	CF_QSTRING, conf_set_auth_webircname,	0, NULL },
 	{ "redirserv",	CF_QSTRING, conf_set_auth_redir_serv,	0, NULL },
 	{ "redirport",	CF_INT,     conf_set_auth_redir_port,	0, NULL },
 	{ "flags",	CF_STRING | CF_FLIST, conf_set_auth_flags,	0, NULL },
@@ -2525,20 +2575,20 @@ static struct ConfEntry conf_general_table[] =
 	{ "max_chans_per_user", CF_INT,   NULL, 0, &ConfigChannel.max_chans_per_user 	},
 	{ "resv_forcepart",     CF_YESNO, NULL, 0, &ConfigChannel.resv_forcepart	},
 	{ "kick_on_split_riding", CF_YESNO, NULL, 0, &ConfigChannel.kick_on_split_riding },
+	{ "no_create_on_split", CF_YESNO, NULL, 0, &ConfigChannel.no_create_on_split 	},
+	{ "no_join_on_split",	CF_YESNO, NULL, 0, &ConfigChannel.no_join_on_split	},
+	{ "default_split_user_count",	CF_INT,  NULL, 0, &ConfigChannel.default_split_user_count	 },
+	{ "default_split_server_count",	CF_INT,	 NULL, 0, &ConfigChannel.default_split_server_count },
 	{ "\0", 		0, 	  NULL, 0, NULL }
 };
 
 static struct ConfEntry conf_network_table[] =
 {
-	{ "default_split_user_count",	CF_INT,  NULL, 0, &ConfigChannel.default_split_user_count	 },
-	{ "default_split_server_count",	CF_INT,	 NULL, 0, &ConfigChannel.default_split_server_count },
 	{ "burst_topicwho",	CF_YESNO, NULL, 0, &ConfigChannel.burst_topicwho	},
 	{ "knock_delay",	CF_TIME,  NULL, 0, &ConfigChannel.knock_delay		},
 	{ "knock_delay_channel",CF_TIME,  NULL, 0, &ConfigChannel.knock_delay_channel	},
 	{ "max_bans",		CF_INT,   NULL, 0, &ConfigChannel.max_bans		},
 	{ "max_bans_large",	CF_INT,   NULL, 0, &ConfigChannel.max_bans_large	},
-	{ "no_create_on_split", CF_YESNO, NULL, 0, &ConfigChannel.no_create_on_split 	},
-	{ "no_join_on_split",	CF_YESNO, NULL, 0, &ConfigChannel.no_join_on_split	},
 	{ "only_ascii_channels", CF_YESNO, NULL, 0, &ConfigChannel.only_ascii_channels },
 	{ "use_quiet",		CF_YESNO, NULL, 0, &ConfigChannel.use_quiet		},
 	{ "use_except",		CF_YESNO, NULL, 0, &ConfigChannel.use_except		},
@@ -2553,9 +2603,11 @@ static struct ConfEntry conf_network_table[] =
 	{ "prefix_admin",	CF_QSTRING, conf_set_network_aprefix, 0, NULL	},
 	{ "prefix_halfop",	CF_QSTRING, conf_set_network_hprefix, 0, NULL	},
 	{ "burst_away",		CF_YESNO, NULL, 0, &ConfigFileEntry.burst_away		},
+	{ "hide_certfp",		CF_YESNO, NULL, 0, &ConfigFileEntry.hide_certfp		},
 	{ "channel_target_change", CF_YESNO, NULL, 0, &ConfigChannel.channel_target_change	},
 	{ "disable_local_channels", CF_YESNO, NULL, 0, &ConfigChannel.disable_local_channels },
 	{ "autochanmodes",	CF_QSTRING, conf_set_channel_autochanmodes, 0, NULL	},
+	{ "modelessmodes",	CF_QSTRING, conf_set_channel_modelessmodes, 0, NULL	},
 	{ "displayed_usercount",	CF_INT, NULL, 0, &ConfigChannel.displayed_usercount	},
 	{ "certfp_method",	CF_STRING, conf_set_general_certfp_method, 0, NULL },
 	{ "\0", 		0, 	  NULL, 0, NULL }
@@ -2617,6 +2669,7 @@ newconf_init()
 	add_top_conf("alias", conf_begin_alias, conf_end_alias, NULL);
 	add_conf_item("alias", "name", CF_QSTRING, conf_set_alias_name);
 	add_conf_item("alias", "target", CF_QSTRING, conf_set_alias_target);
+	add_conf_item("alias", "prefix", CF_QSTRING, conf_set_alias_prefix);
 
 	add_top_conf("blacklist", NULL, NULL, NULL);
 	add_conf_item("blacklist", "host", CF_QSTRING, conf_set_blacklist_host);

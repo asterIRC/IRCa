@@ -1,0 +1,157 @@
+/* part of irca
+ * network.conf.example - example network.conf
+ * include from your ircd.conf instead of giving the contents there for optimum
+ * administrability */
+
+# network: options that should be set the same way network-wide.
+# It is important you get this right!
+# Failure to do so will result in some functions of the IRCd working
+# improperly.
+
+network {
+  # network::autochanmodes modelessmodes:
+  # These control automatic configuration of channels upon their
+  # creation.
+  # This is network administrator personal preference, and it is
+  # recommended you do not make this differ between servers.
+  # The default automodes forbid CTCPs and non-op topic changes.
+  # The default modeless channel modes forbid outside messages only.
+  autochanmodes = "Cnst";
+  modelessmodes = "n"
+
+  # network::modes_disabled_for_halfops:
+  # It's recommended this is empty. Halfops cannot use any of these modes.
+  # Adding 'h' means that halfops are unable to make others halfops.
+  # Adding "beIM" would mean that halfops could not ban, exempt, invite or
+  # mute. for a short discussion of the matter, see src/chmode.c ^F chm_halfop
+  # additionally, adding h here will forbid halfops from kicking other halfops.
+  # this should be sane behaviour.
+  modes_disabled_for_halfops = "h";
+
+  # network::global_chantypes local_chantypes modeless_chantypes:
+  # Channel types that are considered local, global and modeless, respectively.
+  # It's recommended this be something sensical. (global must have #, local &)
+  # If you want modeless global channels you have + be a global type and a
+  # modeless type. (new in irca)
+  # A modeless local channel could be prefixed minus - this is, after all,
+  # invalid to start a nickname.
+  # If you want numbered channels (well, channels that can begin with numerals;
+  # the numberedness of them will not be enforced like on chatd) put
+  # 1234567890 in global_chantypes. Alternatively, you may have it so that
+  # even start numbers are global and odd are local, and 3, 6 and 9 are
+  # modeless.
+  # a modeless_chantype must also be a global or local chantype.
+  # On a modeless channel, if an oper is feeling frisky, the channel could
+  # become modeful.
+  global_chantypes = "#+\"24680";
+  local_chantypes = "&'-13579";
+  modeless_chantypes = "+-369";
+
+  # network::prefix_operbiz prefix_owner prefix_admin prefix_halfop:
+  # These control how prefixes appear.
+  # It IS supported to use & as your admin (or any) prefix, but then you
+  # should rid yourself of localchannels.
+  # The following simulates the exact setup found on unmodified Unreal
+  # IRCd. It requires disabling local channels. Therefore, an alternative
+  # admin prefix is commented below it.
+  prefix_operbiz = "*";
+  prefix_master = "~";
+  prefix_admin = "&";
+  #prefix_admin = "!";
+  prefix_halfop = "%";
+
+  # Prefix setups like the following (all commented) are absolutely not
+  # uncommon on other IRCds.
+  /*
+
+  # UltimateIRCd
+  prefix_operbiz = "";
+  prefix_owner = "";
+  prefix_admin = "!";
+  prefix_halfop = "%";
+
+  # Unknown, but possible on InspIRCd if you try hard enough
+  prefix_operbiz = "";
+  prefix_owner = ".";
+  prefix_admin = "&";
+  prefix_halfop = "%";
+
+  # ElementalIRCd
+  prefix_operbiz = "";
+  prefix_owner = "~";
+  prefix_admin = "!";
+  prefix_halfop = "%";
+
+  # Augmented ElementalIRCd configuration used on irc.umbrellix.net,
+  # the home of irca (hit us up if you have any problems: #coder-com)
+  prefix_operbiz = "*";
+  prefix_owner = "~";
+  prefix_admin = "!";
+  prefix_halfop = "%";
+
+  */
+
+  # network::use_invex use_except use_knock disable_local_channels
+  # We'll blast through these quickly for you.
+  # use_quiet = yes. enables +M.
+  use_quiet = yes;
+
+  # Invex (use_invex = yes; ) (+I) is a way to set an invite on a
+  # hostmask in an otherwise invite-only channel.
+  use_invex = yes;
+
+  # Except (use_except = yes; ) (+e) is a way to allow otherwise banned
+  # users to use the channel.
+  use_except = yes;
+  # Knock (use_knock = yes; ) (/KNOCK <channel>) is a mechanism by which
+  # users who are not banned from a channel that is not set +p may ask
+  # for an invite to a channel that is somehow locked.
+  use_knock = yes;
+  # disable_local_channels, if set to yes, will disable channels whose
+  # name begins with &. These channels are not propagated over the
+  # network. This can safely be inconsistent on the network. "Required"
+  # (will result in funky client behaviour when not used) if any of your
+  # network::prefix_* settings are "&".
+  #disable_local_channels = yes;
+  disable_local_channels = no; #comment the above and uncomment this if
+    # you do not use a "&" prefix.
+
+  # network::knock_delay knock_delay_channel:
+  # How long between knocks to a channel per user per channel, and per
+  # channel irrespective of user, respectively.
+  knock_delay = 4 minutes 30 seconds;
+  knock_delay_channel = 30 seconds;
+
+  # network::max_bans max_bans_large:
+  # The maximum number of entries to the ban, exempt, invite and quiet
+  # lists a normal, and extended lists (+L) channel may have,
+  # respectively.
+  max_bans = 100;
+  max_bans_large = 500;
+
+  # network::burst_topicwho:
+  # netsplit recovery. when running topicburst (see connect::flags), this
+  # option controls whether we send who set the topic as well as the
+  # topic itself. should usually be yes.
+  burst_topicwho = yes;
+
+  # network::only_ascii_channels:
+  # if this is set to yes, only channels whose names are fully ASCII
+  # printable may be created or joined on this server. if you are running
+  # a multilingual network (and this is very easy to do with chatd as
+  # chatd supports full Unicode nicknames - so you can have a Russian
+  # nick) this is highly inadvisable (what, are you gonna expect everyone
+  # to just use numberchannels?)
+  only_ascii_channels = no;
+
+  # network::resv_forcepart: force-part local users of a channel that has
+  # been the subject of an active /RESV.
+  resv_forcepart = yes;
+
+  # network::channel_target_change: activate target change protection,
+  # limiting how many channels users may message in one go.
+  # IRCops and users of privilege in the messaged channels are exempt.
+  channel_target_change = yes;
+};
+
+

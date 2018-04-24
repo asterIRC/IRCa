@@ -2185,3 +2185,26 @@ set_channel_mlock(struct Client *client_p, struct Client *source_p,
 			      chptr->mode_lock ? chptr->mode_lock : "");
 	}
 }
+
+int
+is_better_op(struct membership *source, struct membership *target)
+{
+        if(is_manager(source))
+                return 1;
+        if(is_superop(source) && is_manager(target))
+                return 0;
+        if(is_superop(source) && is_superop(target))
+                return 1;
+        if(is_chanop(source) && is_manager(target))
+                return 0;
+        if(is_chanop(source) && is_superop(target))
+                return 0;
+        if(is_halfop(source) && is_any_op(target))
+                return 0;
+        if(is_halfop(source) && is_halfop(target) && (strchr(ConfigChannel.halfopscannotuse, 'h') != NULL))
+                return 0;
+        if(!is_any_op(source))
+                return 0;
+
+        return 1;
+}

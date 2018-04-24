@@ -167,6 +167,8 @@ struct Client
 
 	time_t large_ctcp_sent; /* ctcp to large group sent, relax flood checks */
 	char *certfp; /* client certificate fingerprint */
+
+	struct Dictionary *metadata; //metadata
 };
 
 struct LocalUser
@@ -425,7 +427,8 @@ struct ListClient
 #define UMODE_DEAF	   0x0080
 #define UMODE_NOFORWARD    0x0100	/* don't forward */
 #define UMODE_REGONLYMSG   0x0200	/* only allow logged in users to msg */
-#define UMODE_CALLERIDXCC  0x0400	/* caller ID, except common channels. */
+#define UMODE_CERTFPHIDE   0x0400	/* hide certfp from !opers, or if
+					network::hide_certfp, show certfp to all */
 
 /* user information flags, only settable by remote mode or local oper */
 #define UMODE_OPER         0x1000	/* Operator */
@@ -533,6 +536,10 @@ struct ListClient
 #define IsDeaf(x)		((x)->umodes & UMODE_DEAF)
 #define IsNoForward(x)		((x)->umodes & UMODE_NOFORWARD)
 #define IsSetRegOnlyMsg(x)	((x)->umodes & UMODE_REGONLYMSG)
+#define IsHidingCert(x)		(\
+				(((x)->umodes & UMODE_CERTFPHIDE) && ConfigFileEntry.hide_certfp == 0) \
+				(!((x)->umodes & UMODE_CERTFPHIDE) && ConfigFileEntry.hide_certfp == 1) \
+				)
 
 #define SetGotId(x)             ((x)->flags |= FLAGS_GOTID)
 #define IsGotId(x)              (((x)->flags & FLAGS_GOTID) != 0)
@@ -621,5 +628,10 @@ extern char *generate_uid(void);
 
 void allocate_away(struct Client *);
 void free_away(struct Client *);
+
+extern struct Metadata *user_metadata_add(struct Client *target, const char *name, const char *value, int propegate);
+extern void user_metadata_delete(struct Client *target, const char *name, int propegate);
+extern struct Metadata *user_metadata_find(struct Client *target, const char *name);
+extern void user_metadata_clear(struct Client *target);
 
 #endif /* INCLUDED_client_h */

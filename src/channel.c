@@ -85,12 +85,16 @@ allocate_channel(const char *chname)
 	struct Channel *chptr;
 	chptr = rb_bh_alloc(channel_heap);
 	chptr->chname = rb_strdup(chname);
+	struct Dictionary *metadata;
+	metadata = irc_dictionary_create(irccmp);
+	chptr->metadata = metadata;
 	return (chptr);
 }
 
 void
 free_channel(struct Channel *chptr)
 {
+	channel_metadata_clear(chptr);
 	rb_free(chptr->chname);
 	rb_free(chptr->mode_lock);
 	rb_bh_free(channel_heap, chptr);
@@ -497,7 +501,7 @@ channel_pub_or_secret(struct Channel *chptr)
  * side effects - client is given list of users on channel
  */
 void
-channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eon, int delay)
+channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eon, int delayed)
 {
 	struct membership *msptr;
 	struct Client *target_p;
@@ -514,7 +518,7 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 	{
 		is_member = IsMember(client_p, chptr);
 
-		cur_len = mlen = rb_sprintf(lbuf, form_str(RPL_NAMREPLY),
+		cur_len = mlen = rb_sprintf(lbuf, delayed ? form_str(RPL_DELNAMREPLY) : form_str(RPL_NAMREPLY),
 					    me.name, client_p->name,
 					    channel_pub_or_secret(chptr), chptr->chname);
 
@@ -528,10 +532,13 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 			if(IsInvisible(target_p) && !is_member)
 				continue;
 
+			if (delayed && !is_delayed(msptr)) continue; // Showing delayed users; this user isn't delayed.
+			if (client_p != target_p && !delayed && is_delayed(msptr)) continue; // Showing undelayed users; this user is delayed.
+
 			if (IsCapable(client_p, CLICAP_USERHOST_IN_NAMES))
 			{
 				/* space, possible "@+" prefix */
-				if (cur_len + strlen(target_p->name) + strlen(target_p->username) + strlen(target_p->host) + 5 >= BUFSIZE - 5)
+				if (cur_len + strlen(target_p->name) + strlen(target_p->username) + strlen(target_p->host) + 10 >= BUFSIZE - 5)
 				{
 					*(t - 1) = '\0';
 					sendto_one(client_p, "%s", lbuf);
@@ -1465,5 +1472,124 @@ resv_chan_forcepart(const char *name, const char *reason, int temp_time)
 				sendto_one_notice(target_p, ":*** Channel %s is no longer available on this server.",
 				           name);
 		}
+	}
+}
+
+/*
+ * channel_metadata_add
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to add
+ *		- value of metadata item
+ *		- 1 if metadata should be propegated, 0 if not
+ * output	- none
+ * side effects - metadata is added to the channel in question
+ *		- metadata is propegated if propegate is set.
+ */
+struct Metadata *
+channel_metadata_add(struct Channel *target, const char *name, const char *value, int propegate)
+{
+	struct Metadata *md;
+
+	md = rb_malloc(sizeof(struct Metadata));
+	md->name = rb_strdup(name);
+	md->value = rb_strdup(value);
+
+	irc_dictionary_add(target->metadata, md->name, md);
+	
+	if(propegate && !ChannelIsLocal(name))
+		sendto_match_servs(&me, "*", CAP_ENCAP, NOCAPS, "ENCAP * METADATA ADD %s %s :%s",
+				target->chname, name, value);
+
+	return md;
+}
+
+/*
+ * channel_metadata_time_add
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to add
+ *		- time_t you wish to add
+ *		- value you wish to add
+ * output	- none
+ * side effects - metadata is added to the channel in question
+ */
+struct Metadata *
+channel_metadata_time_add(struct Channel *target, const char *name, time_t timevalue, const char *value)
+{
+	struct Metadata *md;
+
+	md = rb_malloc(sizeof(struct Metadata));
+	md->name = rb_strdup(name);
+	md->value = rb_strdup(value);
+	md->timevalue = timevalue;
+
+	irc_dictionary_add(target->metadata, md->name, md);
+
+	return md;
+}
+
+/*
+ * channel_metadata_delete
+ * 
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to delete
+ * output	- none
+ * side effects - metadata is deleted from the channel in question
+ * 		- deletion is propegated if propegate is set
+ */
+void
+channel_metadata_delete(struct Channel *target, const char *name, int propegate)
+{
+	struct Metadata *md = channel_metadata_find(target, name);
+
+	if(!md)
+		return;
+
+	irc_dictionary_delete(target->metadata, md->name);
+
+	rb_free(md);
+
+	if(propegate && !ChannelIsLocal(name))
+		sendto_match_servs(&me, "*", CAP_ENCAP, NOCAPS, "ENCAP * METADATA DELETE %s %s",
+				target->chname, name);
+}
+
+/*
+ * channel_metadata_find
+ *
+ * inputs	- pointer to channel struct
+ *		- name of metadata item you wish to read
+ * output	- the requested metadata, if it exists, elsewise null.
+ * side effects -
+ */
+struct Metadata *
+channel_metadata_find(struct Channel *target, const char *name)
+{
+	if(!target)
+		return NULL;
+
+	if(!target->metadata)
+		return NULL;
+
+	return irc_dictionary_retrieve(target->metadata, name);
+}
+
+/*
+ * channel_metadata_clear
+ *
+ * inputs	- pointer to channel struct
+ * output	- none
+ * side effects - metadata is cleared from the channel in question
+ */
+void
+channel_metadata_clear(struct Channel *chptr)
+{
+	struct Metadata *md;
+	struct DictionaryIter iter;
+
+	DICTIONARY_FOREACH(md, &iter, chptr->metadata)
+	{
+		channel_metadata_delete(chptr, md->name, 0);
 	}
 }

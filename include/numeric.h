@@ -178,6 +178,7 @@
 #define RPL_WHOSPCRPL        354 /* from ircu -- jilles */
 #define RPL_ENDOFWHO         315
 #define RPL_NAMREPLY         353
+#define RPL_DELNAMREPLY      355 // DELNAMREPLY
 #define RPL_WHOWASREAL       360
 #define RPL_ENDOFNAMES       366
 

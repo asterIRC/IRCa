@@ -73,7 +73,7 @@ int user_modes[256] = {
 	0,			/* C */
 	UMODE_DEAF,		/* D */
 	0,			/* E */
-	0,			/* F */
+	UMODE_CERTFPHIDE,	/* F */
 	0,			/* G */
 	0,			/* H */
 	0,			/* I */
@@ -85,7 +85,7 @@ int user_modes[256] = {
 	0,			/* O */
 	0,			/* P */
 	UMODE_NOFORWARD,	/* Q */
-	UMODE_REGONLYMSG,	/* R */
+	0,			/* R */
 	UMODE_SERVICE,		/* S */
 	UMODE_SCTPCLIENT,	/* T */
 	0,			/* U */
@@ -1527,9 +1527,40 @@ change_nick_user_host(struct Client *target_p,	const char *nick, const char *use
 			chptr = mscptr->chptr;
 			mptr = mode;
 
+			if (is_delayed(mscptr)) continue; // probably auditorium
+
+
+			if(is_operbiz(mscptr))
+			{
+				*mptr++ = 'y';
+				strcat(modeval, nick);
+				strcat(modeval, " ");
+			}
+
+			if(is_manager(mscptr))
+			{
+				*mptr++ = 'q';
+				strcat(modeval, nick);
+				strcat(modeval, " ");
+			}
+
+			if(is_superop(mscptr))
+			{
+				*mptr++ = 'a';
+				strcat(modeval, nick);
+				strcat(modeval, " ");
+			}
+
 			if(is_chanop(mscptr))
 			{
 				*mptr++ = 'o';
+				strcat(modeval, nick);
+				strcat(modeval, " ");
+			}
+
+			if(is_halfop(mscptr))
+			{
+				*mptr++ = 'h';
 				strcat(modeval, nick);
 				strcat(modeval, " ");
 			}
