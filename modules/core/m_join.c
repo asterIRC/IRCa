@@ -141,7 +141,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 	char *name;
 	char *key = NULL;
 	const char *modes;
-	int i, flags = 0;
+	int i, flags = 0, newchan;
 	char *p = NULL, *p2 = NULL;
 	char *chanlist;
 	char *mykey;
@@ -259,7 +259,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 				continue;
 			}
 
-			if(splitmode && !IsOper(source_p) && (*name != '&') &&
+			if(splitmode && !IsOper(source_p) && !ChannelIsLocal(name) &&
 			   ConfigChannel.no_create_on_split)
 			{
 				sendto_one(source_p, form_str(ERR_UNAVAILRESOURCE),
@@ -267,7 +267,8 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 				continue;
 			}
 
-			flags = CHFL_CHANOP;
+			flags = ChannelHasModes(name)? CHFL_CHANOP : 0;
+			newchan = 1;
 		}
 
 		if((rb_dlink_list_length(&source_p->user->channel) >=
@@ -330,26 +331,27 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		 * send a mode out next.
 		 */
 		struct membership *msptr = find_channel_membership(chptr, source_p); // at this point a membership is guaranteed.
-		if (chptr->mode.mode & MODE_CHANDELAY && !(flags & CHFL_CHANOP)) msptr->flags |= CHFL_DELAY; // user is delayed. this state is stored locally
+		if (chptr->mode.mode & MODE_CHANDELAY && !(newchan)) msptr->flags |= CHFL_DELAY; // user is delayed. this state is stored locally
 		// and should be assumed if the channel is delayed. we don't care about desyncs as long as they don't affect op tracking and delayed isn't
 		// a privilege flag despite being stored in the same mask.
 
 		send_channel_join(1, chptr, source_p);
 
 		/* its a new channel, set +nt and burst. */
-		if(flags & CHFL_CHANOP)
+		if(newchan)
 		{
 			chptr->channelts = rb_current_time();
-			chptr->mode.mode |= ConfigChannel.autochanmodes;
+			chptr->mode.mode |= ChannelHasModes(name)?ConfigChannel.autochanmodes:ConfigChannel.modelessmodes;
 			modes = channel_modes(chptr, &me);
 
-			sendto_channel_local(ONLY_CHANOPS, chptr, ":%s MODE %s %s",
+			if (ChannelHasModes(name))
+				sendto_channel_local(ONLY_CHANOPS, chptr, ":%s MODE %s %s",
 					     me.name, chptr->chname, modes);
 
 			sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
-				      ":%s SJOIN %ld %s %s :@%s",
+				      ":%s SJOIN %ld %s %s :%s%s",
 				      me.id, (long) chptr->channelts,
-				      chptr->chname, modes, source_p->id);
+				      chptr->chname, modes, (flags & CHFL_CHANOP) ? "@" : "", source_p->id);
 		}
 		else
 		{
