@@ -87,13 +87,19 @@ construct_cflags_strings(void)
 	*ptr2 = '\0';
 
 	for(i = 0; i < 256; i++)
-	{
+	{	// XXX: should we ever care? maybe if we didn't
+		// we could have nice things like one function handling
+		// all op types, or message throttling.
 		if( !(chmode_table[i].set_func == chm_ban) &&
 			!(chmode_table[i].set_func == chm_forward) &&
 			!(chmode_table[i].set_func == chm_throttle) &&
                         !(chmode_table[i].set_func == chm_key) &&
                         !(chmode_table[i].set_func == chm_limit) &&
+                        !(chmode_table[i].set_func == chm_operbiz) &&
+                        !(chmode_table[i].set_func == chm_manager) &&
+                        !(chmode_table[i].set_func == chm_superop) &&
                         !(chmode_table[i].set_func == chm_op) &&
+                        !(chmode_table[i].set_func == chm_halfop) &&
                         !(chmode_table[i].set_func == chm_voice))
 		{
 			chmode_flags[i] = chmode_table[i].mode_type;
@@ -1320,7 +1326,7 @@ chm_op(struct Client *source_p, struct Channel *chptr,
 
 
 void
-chm_helpop(struct Client *source_p, struct Channel *chptr,
+chm_halfop(struct Client *source_p, struct Channel *chptr,
        int alevel, int parc, int *parn,
        const char **parv, int *errors, int dir, char c, long mode_type)
 {
