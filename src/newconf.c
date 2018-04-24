@@ -1849,10 +1849,10 @@ strdup_cfg_entry(conf_set_network_operprefix, "network::prefix_operbiz", 1, &Con
 strdup_cfg_entry(conf_set_network_qprefix, "network::prefix_owner", 1, &ConfigChannel.qprefix);
 strdup_cfg_entry(conf_set_network_aprefix, "network::prefix_admin", 1, &ConfigChannel.aprefix);
 strdup_cfg_entry(conf_set_network_hprefix, "network::prefix_halfop", 1, &ConfigChannel.hprefix);
-strdup_cfg_entry(conf_set_network_nohalfops, "network::modes_disabled_for_halfops", 1, &ConfigChannel.halfopscannotuse);
-strdup_cfg_entry(conf_set_network_globalchan, "network::global_chantypes", 1, &ConfigChannel.chnampfxglobal);
-strdup_cfg_entry(conf_set_network_localchan, "network::local_chantypes", 1, &ConfigChannel.chnampfxlocal);
-strdup_cfg_entry(conf_set_network_modeless, "network::modeless_chantypes", 1, &ConfigChannel.chnampfxmodeless);
+strdup_cfg_entry(conf_set_network_nohalfops, "network::modes_disabled_for_halfops", 40, &ConfigChannel.halfopscannotuse);
+strdup_cfg_entry(conf_set_network_globalchan, "network::global_chantypes", 40, &ConfigChannel.chnampfxglobal);
+strdup_cfg_entry(conf_set_network_localchan, "network::local_chantypes", 40, &ConfigChannel.chnampfxlocal);
+strdup_cfg_entry(conf_set_network_modeless, "network::modeless_chantypes", 40, &ConfigChannel.chnampfxmodeless);
 
 static int
 conf_begin_alias(struct TopConf *tc)
