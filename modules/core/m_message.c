@@ -512,6 +512,8 @@ msg_channel(enum message_type msgtype,
 		return;
 	}
 
+	struct membership *msptr = find_channel_membership(chptr, source_p);
+
 	/* chanops and voiced can flood their own channel with impunity */
 	if((result = can_send(chptr, source_p, NULL)))
 	{
