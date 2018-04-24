@@ -786,13 +786,13 @@ set_default_conf(void)
 	ConfigChannel.burst_topicwho = NO;
 	ConfigChannel.kick_on_split_riding = NO;
 
-	ConfigChannel.chnampfxglobal = { '#', '"', '+', 0 };
-	ConfigChannel.chnampfxlocal = { '\'', '-', 0 };
-	ConfigChannel.chnampfxmodeless = { '+', '-', 0 };
-	ConfigChannel.operprefix = { '*', 0 };
-	ConfigChannel.qprefix = { '~', 0 };
-	ConfigChannel.aprefix = { '&', 0 };
-	ConfigChannel.hprefix = { '%', 0 };
+	ConfigChannel.chnampfxglobal = "#+\"";
+	ConfigChannel.chnampfxlocal = "'-";
+	ConfigChannel.chnampfxmodeless = "+-";
+	ConfigChannel.operprefix = "*";
+	ConfigChannel.qprefix = "~";
+	ConfigChannel.aprefix = "&";
+	ConfigChannel.hprefix = "%";
 
 	ConfigChannel.default_split_user_count = 15000;
 	ConfigChannel.default_split_server_count = 10;
