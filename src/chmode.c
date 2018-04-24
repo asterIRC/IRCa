@@ -1261,6 +1261,9 @@ chm_op(struct Client *source_p, struct Channel *chptr,
 	const char *opnick;
 	struct Client *targ_p;
 
+	if (!candomodechange (source_p, chptr, alevel, "operator", CHFL_CHANOP|CHFL_SUPEROP|CHFL_MANAGER, errors))
+		return;
+
 	if(!allow_mode_change(source_p, chptr, alevel, errors, c))
 		return;
 
