@@ -1003,7 +1003,7 @@ flood_attack_channel(int p_or_n, struct Client *source_p, struct Channel *chptr,
 		{
 			if(chptr->flood_noticed == 0)
 			{
-				sendto_realops_snomask(SNO_BOTS, ChannelIsLocal(*chptr->chname) ? L_ALL : L_NETWIDE,
+				sendto_realops_snomask(SNO_BOTS, ChannelIsLocal(chptr->chname) ? L_ALL : L_NETWIDE,
 						     "Possible Flooder %s[%s@%s] on %s target: %s",
 						     source_p->name, source_p->username,
 						     source_p->orighost,
