@@ -231,8 +231,7 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define ChannelHasModes(name)	((name) && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL) && ( \
-		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL) && (\
-		strlen(name) != 9 || !IsDigit(*(name)))
+		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL))
 #define ChannelIsLocal(name)	((name) && ( \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL))
 
