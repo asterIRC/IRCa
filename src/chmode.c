@@ -1001,7 +1001,7 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 int candomodechange (struct Client *source_p, struct Channel *chptr,
 	int alevel, char *raname, int ralevel, int *errors)
 {
-	if(!(alevel & ralevel) && (NULL == (source_p->umodes & user_modes['p'])))
+	if((0x0 == (ralevel & alevel)) && (0x0 == (source_p->umodes & user_modes['p'])))
 	{
 		if(!(*errors & SM_ERR_NOOPS))
 		sendto_one(source_p, ":%s 482 %s %s :You're not a channel %s", me.name, source_p->name, chptr->chname, raname);
@@ -1182,7 +1182,7 @@ chm_superop(struct Client *source_p, struct Channel *chptr,
 	const char *opnick;
 	struct Client *targ_p;
 
-	if (!candomodechange (source_p, chptr, alevel, "super-operator", CHFL_SUPEROP, errors))
+	if (!candomodechange (source_p, chptr, alevel, "super-operator", CHFL_SUPEROP|CHFL_MANAGER, errors))
 		return;
 
 	if(!allow_mode_change(source_p, chptr, alevel, errors, c))
@@ -1338,10 +1338,12 @@ chm_halfop(struct Client *source_p, struct Channel *chptr,
 	const char *opnick;
 	struct Client *targ_p;
 
-// Controversial: allow helpops to make other helpops helpops
-	if (!candomodechange (source_p, chptr, alevel, "half-operator", CHFL_HALFOP, errors))
+// Controversial: allow helpops to make other helpops helpops - solved below
+	if (!candomodechange (source_p, chptr, alevel, "half-operator", CHFL_HALFOP|CHFL_CHANOP|CHFL_SUPEROP|CHFL_MANAGER, errors))
 		return;
 
+// Normally h won't be a nohalfop mode. If let thru by that, but h is a m_d_f_h mode,
+// this will block.
 	if(!allow_mode_change(source_p, chptr, alevel, errors, c))
 		return;
 
