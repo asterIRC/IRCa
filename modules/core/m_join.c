@@ -334,7 +334,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		// and should be assumed if the channel is delayed. we don't care about desyncs as long as they don't affect op tracking and delayed isn't
 		// a privilege flag despite being stored in the same mask.
 
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 
 		/* its a new channel, set +nt and burst. */
 		if(flags & CHFL_CHANOP)
@@ -504,7 +504,7 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 			chptr->join_delta = rb_current_time();
 		}
 		chptr->join_count++;
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 	}
 
 	sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
@@ -894,7 +894,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		if(!IsMember(target_p, chptr))
 		{
 			add_user_to_channel(chptr, target_p, fl);
-			send_channel_join(chptr, target_p);
+			send_channel_join(1, chptr, target_p);
 			joins++;
 		}
 

@@ -105,7 +105,7 @@ mo_ojoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
 			      ":%s SJOIN %ld %s + :@%s",
 			      me.id, (long) chptr->channelts, chptr->chname, source_p->id);
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 		sendto_channel_local(ALL_MEMBERS, chptr, ":%s MODE %s +o %s",
 				     me.name, chptr->chname, source_p->name);
 
@@ -116,7 +116,7 @@ mo_ojoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
 			      ":%s SJOIN %ld %s + :+%s",
 			      me.id, (long) chptr->channelts, chptr->chname, source_p->id);
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 		sendto_channel_local(ALL_MEMBERS, chptr, ":%s MODE %s +v %s",
 				     me.name, chptr->chname, source_p->name);
 	}
@@ -126,7 +126,7 @@ mo_ojoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
 			      ":%s JOIN %ld %s +",
 			      source_p->id, (long) chptr->channelts, chptr->chname);
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 	}
 
 	/* send the topic... */
