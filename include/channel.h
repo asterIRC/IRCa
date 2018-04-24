@@ -225,16 +225,16 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define IsMember(who, chan) ((who && who->user && \
                 find_channel_membership(chan, who)) ? 1 : 0)
 
-#define IsChannelName(name)	((name) && !clean_nick(name) && ( \
+#define IsChannelName(name)	((name) && !clean_nick(name, 1) && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxmodeless, *(name)) != NULL) && (\
 		strlen(name) != 9 || !IsDigit(*(name))))
-#define ChannelHasModes(name)	((name) && !clean_nick(name)  && ( \
+#define ChannelHasModes(name)	((name) && !clean_nick(name, 1)  && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL) && ( \
 		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL))
-#define ChannelIsLocal(name)	((name) && !clean_nick(name)  && ( \
+#define ChannelIsLocal(name)	((name) && !clean_nick(name, 1)  && ( \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL))
 
 /* extban function results */
