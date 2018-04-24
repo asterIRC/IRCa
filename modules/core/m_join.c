@@ -141,7 +141,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 	char *name;
 	char *key = NULL;
 	const char *modes;
-	int i, flags = 0, newchan;
+	int i, flags = 0, newchan = 0;
 	char *p = NULL, *p2 = NULL;
 	char *chanlist;
 	char *mykey;
@@ -240,6 +240,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 				continue;
 
 			flags = 0;
+			newchan = 0;
 		}
 		else
 		{
@@ -338,15 +339,18 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		send_channel_join(1, chptr, source_p);
 
 		/* its a new channel, set +nt and burst. */
-		if(newchan)
+		if(newchan == 1)
 		{
 			chptr->channelts = rb_current_time();
 			chptr->mode.mode |= ChannelHasModes(name)?ConfigChannel.autochanmodes:ConfigChannel.modelessmodes;
 			modes = channel_modes(chptr, &me);
 
-			if (ChannelHasModes(name))
+			if (ChannelHasModes(name)) {
 				sendto_channel_local(ONLY_CHANOPS, chptr, ":%s MODE %s %s",
 					     me.name, chptr->chname, modes);
+				sendto_channel_local(ALL_MEMBERS, chptr, ":%s NOTICE %s :%s",
+				             me.name, chptr->chname, "Welcome to your new channel. This type of channel has modes. You'd know this from the type of channel you joined.");
+			}
 
 			sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
 				      ":%s SJOIN %ld %s %s :%s%s",

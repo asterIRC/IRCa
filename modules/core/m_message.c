@@ -526,6 +526,12 @@ msg_channel(enum message_type msgtype,
 		if(result == CAN_SEND_OPV ||
 		   !flood_attack_channel(msgtype, source_p, chptr, chptr->chname))
 		{
+			if (is_delayed(msptr)) {
+				// User is member of channel. Undelay them if they can speak.
+				msptr->flags &= ~CHFL_DELAY;
+				send_channel_join(0, chptr, source_p);
+			}
+
 			sendto_channel_flags(client_p, ALL_MEMBERS, source_p, chptr,
 					     "%s %s :%s", cmdname[msgtype], chptr->chname, text);
 		}
