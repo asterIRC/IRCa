@@ -804,7 +804,7 @@ set_default_conf(void)
 	ConfigChannel.displayed_usercount = 3;
 
 	ConfigChannel.autochanmodes = MODE_TOPICLIMIT | MODE_NOPRIVMSGS;
-	ConfigChannel.halfopscannotuse = 0;
+	ConfigChannel.halfopscannotuse = { 0 };
 
 	ConfigServerHide.flatten_links = 0;
 	ConfigServerHide.links_delay = 300;

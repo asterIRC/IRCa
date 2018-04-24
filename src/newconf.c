@@ -2555,7 +2555,7 @@ static struct ConfEntry conf_network_table[] =
 	{ "global_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxglobal	},
 	{ "local_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxlocal		},
 	{ "modeless_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxmodeless	},
-	{ "modes_disabled_for_halfops",	CF_QSTRING, conf_set_channel_halfpscannotuse, 0, NULL	},
+	{ "modes_disabled_for_halfops",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.halfopscannotuse	},
 	{ "prefix_operbiz",	CF_QSTRING, NULL, 2, &ConfigChannel.operprefix	},
 	{ "prefix_owner",	CF_QSTRING, NULL, 2, &ConfigChannel.qprefix	},
 	{ "prefix_admin",	CF_QSTRING, NULL, 2, &ConfigChannel.aprefix	},

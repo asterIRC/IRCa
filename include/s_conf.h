@@ -270,7 +270,7 @@ struct config_channel_entry
 	char chnampfxmodeless[REALLEN];
 	char chnampfx[REALLEN];
 
-	unsigned int halfopscannotuse;
+	char halfopscannotuse[REALLEN];
 
 	char operprefix[2];
 	char qprefix[2];
