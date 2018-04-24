@@ -47,7 +47,6 @@ struct Class
 	int cidr_ipv4_bitlen;
 	int cidr_ipv6_bitlen;
 	int cidr_amount;
-
 };
 
 extern rb_dlink_list class_list;

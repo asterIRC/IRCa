@@ -774,7 +774,7 @@ conf_set_oper_rsa_public_key_file(void *data)
 static void
 conf_set_oper_umodes(void *data)
 {
-	set_modes_from_table(&yy_oper->umodes, "umode", umode_table, data);
+	set_modes_from_global_table(&yy_oper->umodes, "umode", data);
 }
 
 static void
@@ -1703,7 +1703,7 @@ conf_set_general_default_umodes(void *data)
 static void
 conf_set_general_oper_umodes(void *data)
 {
-	set_modes_from_table(&ConfigFileEntry.oper_umodes, "umode", umode_table, data);
+	set_modes_from_global_table(&ConfigFileEntry.oper_umodes, "umode", data);
 }
 
 static void
@@ -1731,7 +1731,7 @@ conf_set_general_certfp_method(void *data)
 static void
 conf_set_general_oper_only_umodes(void *data)
 {
-	set_modes_from_table(&ConfigFileEntry.oper_only_umodes, "umode", umode_table, data);
+	set_modes_from_global_table(&ConfigFileEntry.oper_only_umodes, "umode", data);
 }
 
 static void
