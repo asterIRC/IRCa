@@ -107,7 +107,7 @@ m_metadata(struct Client *client_p, struct Client *source_p, int parc, const cha
 		}
 	}
 
-	// Uhhh.... rizight. I don't think this is gonna work (mumble mumble) -- janicez
+	// Uhhh.... riight. I don't think this is gonna work (mumble mumble) -- janicez
 	if ((msptr = find_channel_membership(chptr, source_p)) == NULL)
 	{
 		sendto_one_numeric(source_p, ERR_NOTONCHANNEL,
@@ -116,7 +116,7 @@ m_metadata(struct Client *client_p, struct Client *source_p, int parc, const cha
 	}
 
 	// Yeah. No. --janicez
-	if (!is_any_op(msptr) && !IsOverride(source_p))
+	if (!is_any_op(msptr) && (0x0 == (source_p->umodes & user_modes['p'])))
 	{
 		sendto_one(source_p, form_str(ERR_CHANOPRIVSNEEDED),
 				me.name, source_p->name, parv[2]);
