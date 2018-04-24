@@ -1897,42 +1897,6 @@ conf_set_channel_autochanmodes(void *data)
 	}
 }
 
-static void
-conf_set_channel_halfopscannotuse(void *data)
-{
-	char *pm;
-	int what = MODE_ADD;
-
-	ConfigChannel.halfopscannotuse = 0;
-	for (pm = (char *) data; *pm; pm++)
-	{
-		switch (*pm)
-		{
-		case '+':
-			what = MODE_ADD;
-			break;
-		case '-':
-			what = MODE_DEL;
-			break;
-
-		default:
-			if (chmode_table[(unsigned char) *pm].set_func == chm_simple)
-			{
-				if (what == MODE_ADD)
-					ConfigChannel.halfopscannotuse |= chmode_table[(unsigned char) *pm].mode_type;
-				else
-					ConfigChannel.halfopscannotuse &= ~chmode_table[(unsigned char) *pm].mode_type;
-			}
-			else
-			{
-				conf_report_error("channel::modes_disabled_for_halfops -- Invalid channel mode %c", *pm);
-				continue;
-			}
-			break;
-		}
-	}
-}
-
 /* XXX for below */
 static void conf_set_blacklist_reason(void *data);
 
