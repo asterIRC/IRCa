@@ -1897,6 +1897,42 @@ conf_set_channel_autochanmodes(void *data)
 	}
 }
 
+static void
+conf_set_channel_halfopscannotuse(void *data)
+{
+	char *pm;
+	int what = MODE_ADD;
+
+	ConfigChannel.halfopscannotuse = 0;
+	for (pm = (char *) data; *pm; pm++)
+	{
+		switch (*pm)
+		{
+		case '+':
+			what = MODE_ADD;
+			break;
+		case '-':
+			what = MODE_DEL;
+			break;
+
+		default:
+			if (chmode_table[(unsigned char) *pm].set_func == chm_simple)
+			{
+				if (what == MODE_ADD)
+					ConfigChannel.halfopscannotuse |= chmode_table[(unsigned char) *pm].mode_type;
+				else
+					ConfigChannel.halfopscannotuse &= ~chmode_table[(unsigned char) *pm].mode_type;
+			}
+			else
+			{
+				conf_report_error("channel::modes_disabled_for_halfops -- Invalid channel mode %c", *pm);
+				continue;
+			}
+			break;
+		}
+	}
+}
+
 /* XXX for below */
 static void conf_set_blacklist_reason(void *data);
 
@@ -2441,7 +2477,6 @@ static struct ConfEntry conf_general_table[] =
 	{ "tkline_expire_notices",	 CF_YESNO, NULL, 0, &ConfigFileEntry.tkline_expire_notices },
 
 	{ "anti_nick_flood",	CF_YESNO, NULL, 0, &ConfigFileEntry.anti_nick_flood	},
-	{ "burst_away",		CF_YESNO, NULL, 0, &ConfigFileEntry.burst_away		},
 	{ "caller_id_wait",	CF_TIME,  NULL, 0, &ConfigFileEntry.caller_id_wait	},
 	{ "client_exit",	CF_YESNO, NULL, 0, &ConfigFileEntry.client_exit		},
 	{ "collision_fnc",	CF_YESNO, NULL, 0, &ConfigFileEntry.collision_fnc	},
@@ -2495,33 +2530,42 @@ static struct ConfEntry conf_general_table[] =
 	{ "client_flood_message_time",	CF_INT,   NULL, 0, &ConfigFileEntry.client_flood_message_time	},
 	{ "max_ratelimit_tokens",	CF_INT,   NULL, 0, &ConfigFileEntry.max_ratelimit_tokens	},
 	{ "away_interval",		CF_INT,   NULL, 0, &ConfigFileEntry.away_interval		},
-	{ "certfp_method",	CF_STRING, conf_set_general_certfp_method, 0, NULL },
+	{ "max_chans_per_user", CF_INT,   NULL, 0, &ConfigChannel.max_chans_per_user 	},
+	{ "resv_forcepart",     CF_YESNO, NULL, 0, &ConfigChannel.resv_forcepart	},
+	{ "kick_on_split_riding", CF_YESNO, NULL, 0, &ConfigChannel.kick_on_split_riding },
 	{ "\0", 		0, 	  NULL, 0, NULL }
 };
 
-static struct ConfEntry conf_channel_table[] =
+static struct ConfEntry conf_network_table[] =
 {
 	{ "default_split_user_count",	CF_INT,  NULL, 0, &ConfigChannel.default_split_user_count	 },
 	{ "default_split_server_count",	CF_INT,	 NULL, 0, &ConfigChannel.default_split_server_count },
 	{ "burst_topicwho",	CF_YESNO, NULL, 0, &ConfigChannel.burst_topicwho	},
-	{ "kick_on_split_riding", CF_YESNO, NULL, 0, &ConfigChannel.kick_on_split_riding },
 	{ "knock_delay",	CF_TIME,  NULL, 0, &ConfigChannel.knock_delay		},
 	{ "knock_delay_channel",CF_TIME,  NULL, 0, &ConfigChannel.knock_delay_channel	},
 	{ "max_bans",		CF_INT,   NULL, 0, &ConfigChannel.max_bans		},
 	{ "max_bans_large",	CF_INT,   NULL, 0, &ConfigChannel.max_bans_large	},
-	{ "max_chans_per_user", CF_INT,   NULL, 0, &ConfigChannel.max_chans_per_user 	},
 	{ "no_create_on_split", CF_YESNO, NULL, 0, &ConfigChannel.no_create_on_split 	},
 	{ "no_join_on_split",	CF_YESNO, NULL, 0, &ConfigChannel.no_join_on_split	},
 	{ "only_ascii_channels", CF_YESNO, NULL, 0, &ConfigChannel.only_ascii_channels },
+	{ "use_quiet",		CF_YESNO, NULL, 0, &ConfigChannel.use_quiet		},
 	{ "use_except",		CF_YESNO, NULL, 0, &ConfigChannel.use_except		},
 	{ "use_invex",		CF_YESNO, NULL, 0, &ConfigChannel.use_invex		},
 	{ "use_forward",	CF_YESNO, NULL, 0, &ConfigChannel.use_forward		},
-	{ "use_knock",		CF_YESNO, NULL, 0, &ConfigChannel.use_knock		},
-	{ "resv_forcepart",     CF_YESNO, NULL, 0, &ConfigChannel.resv_forcepart	},
+	{ "global_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxglobal	},
+	{ "local_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxlocal		},
+	{ "modeless_chantypes",	CF_QSTRING, NULL, REALLEN, &ConfigChannel.chnampfxmodeless	},
+	{ "modes_disabled_for_halfops",	CF_QSTRING, conf_set_channel_halfpscannotuse, 0, NULL	},
+	{ "prefix_operbiz",	CF_QSTRING, NULL, 2, &ConfigChannel.operprefix	},
+	{ "prefix_owner",	CF_QSTRING, NULL, 2, &ConfigChannel.qprefix	},
+	{ "prefix_admin",	CF_QSTRING, NULL, 2, &ConfigChannel.aprefix	},
+	{ "prefix_halfop",	CF_QSTRING, NULL, 2, &ConfigChannel.hprefix	},
+	{ "burst_away",		CF_YESNO, NULL, 0, &ConfigFileEntry.burst_away		},
 	{ "channel_target_change", CF_YESNO, NULL, 0, &ConfigChannel.channel_target_change	},
 	{ "disable_local_channels", CF_YESNO, NULL, 0, &ConfigChannel.disable_local_channels },
 	{ "autochanmodes",	CF_QSTRING, conf_set_channel_autochanmodes, 0, NULL	},
 	{ "displayed_usercount",	CF_INT, NULL, 0, &ConfigChannel.displayed_usercount	},
+	{ "certfp_method",	CF_STRING, conf_set_general_certfp_method, 0, NULL },
 	{ "\0", 		0, 	  NULL, 0, NULL }
 };
 
@@ -2572,7 +2616,7 @@ newconf_init()
 	add_conf_item("cluster", "flags", CF_STRING | CF_FLIST, conf_set_cluster_flags);
 
 	add_top_conf("general", NULL, NULL, conf_general_table);
-	add_top_conf("channel", NULL, NULL, conf_channel_table);
+	add_top_conf("network", NULL, NULL, conf_network_table);
 	add_top_conf("serverhide", NULL, NULL, conf_serverhide_table);
 
 	add_top_conf("service", NULL, NULL, NULL);

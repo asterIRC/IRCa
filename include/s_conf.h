@@ -265,17 +265,17 @@ struct config_channel_entry
 	int disable_local_channels;
 	unsigned int autochanmodes;
 	int displayed_usercount;
-	char *chnampfxglobal;
-	char *chnampfxlocal;
-	char *chnampfxmodeless;
-	char *chnampfx;
+	char chnampfxglobal[REALLEN];
+	char chnampfxlocal[REALLEN];
+	char chnampfxmodeless[REALLEN];
+	char chnampfx[REALLEN];
 
-	char *halfopscannotuse;
+	unsigned int halfopscannotuse;
 
-	char *operprefix;
-	char *qprefix;
-	char *aprefix;
-	char *hprefix;
+	char operprefix[2];
+	char qprefix[2];
+	char aprefix[2];
+	char hprefix[2];
 };
 
 struct config_server_hide

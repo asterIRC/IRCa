@@ -330,7 +330,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		 * send a mode out next.
 		 */
 		struct membership *msptr = find_channel_membership(chptr, source_p); // at this point a membership is guaranteed.
-		if (chptr->mode.mode & MODE_CHANDELAY && !(flags & CHFL_CHANOP)) msptr->flags |= CHFL_DELAYED; // user is delayed. this state is stored locally
+		if (chptr->mode.mode & MODE_CHANDELAY && !(flags & CHFL_CHANOP)) msptr->flags |= CHFL_DELAY; // user is delayed. this state is stored locally
 		// and should be assumed if the channel is delayed. we don't care about desyncs as long as they don't affect op tracking and delayed isn't
 		// a privilege flag despite being stored in the same mask.
 
@@ -416,8 +416,9 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 	if(!IsChannelName(parv[2]) || !check_channel_name(parv[2]))
 		return 0;
 
-	/* joins for local channels cant happen. */
-	if(parv[2][0] == '&')
+	/* joins for local channels cant happen.
+	 * local channel config must be consistent across network. */
+	if(ChannelIsLocal(parv[2]))
 		return 0;
 
 	char *mbuf = modebuf;
