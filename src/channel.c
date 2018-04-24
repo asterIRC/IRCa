@@ -1111,14 +1111,14 @@ check_spambot_warning(struct Client *source_p, const char *name)
 		else
 		{
 			if((rb_current_time() -
-			    (source_p->localClient->last_join.time)) < GlobalSetOptions.spam_time)
+			    (source_p->localClient->last_join_time)) < GlobalSetOptions.spam_time)
 			{
 				/* oh, its a possible spambot */
 				source_p->localClient->join_leave_count++;
 			}
 		}
 		if(name != NULL)
-			source_p->localClient->last_join.time = rb_current_time();
+			source_p->localClient->last_join_time = rb_current_time();
 		else
 			source_p->localClient->last_leave_time = rb_current_time();
 	}
