@@ -233,8 +233,12 @@ allow_mode_change(struct Client *source_p, struct Channel *chptr, int alevel,
 		return 0;
 	}
 	int isnohalf = 0;
-	if((strchr(ConfigChannel.halfopscannotuse, c) != NULL && (alevel & CHFL_HALFOP)
-	&& ~(alevel & ONLY_CHANOPS)) && ~(alevel & CHFL_HALFOP|ONLY_CHANOPS))
+	// ONLY_CHANOPS is a chanop
+	// CHFL_HALFOP is a helpop
+	// is the mode a nohalf mode?
+	isnohalf = (strchr(ConfigChannel.halfopscannotuse, c) != NULL);
+
+	if((isnohalf && (alevel & CHFL_HALFOP) && !(alevel & ONLY_CHANOPS)) || (!isnohalf && !(alevel & (CHFL_HALFOP|ONLY_CHANOPS))))
 	{
 		if(!(*errors & SM_ERR_NOOPS))
 			sendto_one(source_p, form_str(isnohalf?ERR_CHANOPRIVSNEEDED+3000:ERR_CHANOPRIVSNEEDED),
