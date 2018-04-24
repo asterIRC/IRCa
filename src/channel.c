@@ -163,7 +163,7 @@ send_channel_join(int isnew, struct Channel *chptr, struct Client *client_p)
  * side effects - none
  */
 void
-send_channel_join(struct Channel *chptr, struct Client *client_p)
+old_send_channel_join(struct Channel *chptr, struct Client *client_p)
 {
 	if (!IsClient(client_p))
 		return;
