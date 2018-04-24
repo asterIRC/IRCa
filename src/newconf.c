@@ -1815,7 +1815,7 @@ static void conf_set_strdup (char *cfgname, int maxlen, char **targvar, char *va
 #define strdup_cfg_entry(sy, nm, l, tv) static void \
 	sy (void *data) \
 	{ \
-		conf_set_strdup( (nm) , (l) , & (tv), (char *)data); \
+		conf_set_strdup( (nm) , (l) , tv, (char *)data); \
 		return;\
 	};
 
