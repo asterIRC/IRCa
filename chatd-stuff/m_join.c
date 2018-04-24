@@ -41,8 +41,6 @@
 #include "modules.h"
 #include "packet.h"
 #include "chmode.h"
-#include "ratelimit.h"
-#include "s_assert.h"
 
 static int m_join(struct Client *, struct Client *, int, const char **);
 static int ms_join(struct Client *, struct Client *, int, const char **);
@@ -73,20 +71,26 @@ DECLARE_MODULE_AV1(join, NULL, NULL, join_clist, join_hlist, NULL, "$Revision: 3
 
 static void do_join_0(struct Client *client_p, struct Client *source_p);
 static int check_channel_name_loc(struct Client *source_p, const char *name);
-static void send_join_error(struct Client *source_p, int numeric, const char *name);
 
-static char *set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmode);
+static void set_final_mode(struct Mode *mode, struct Mode *oldmode);
 static void remove_our_modes(struct Channel *chptr, struct Client *source_p);
 
 static void remove_ban_list(struct Channel *chptr, struct Client *source_p,
 			    rb_dlink_list * list, char c, int mems);
+
+static char modebuf[MODEBUFLEN];
+static char omodebuf[MODEBUFLEN];
+static char parabuf[MODEBUFLEN];
+static const char *para[MAXMODEPARAMS];
+static char *mbuf, *ombuf;
+static int pargs;
 
 /* Check what we will forward to, without sending any notices to the user
  * -- jilles
  */
 static struct Channel *
 check_forward(struct Client *source_p, struct Channel *chptr,
-	     char *key, int *err)
+		char *key, int *err)
 {
 	int depth = 0, i;
 	const char *next = NULL;
@@ -96,15 +100,20 @@ check_forward(struct Client *source_p, struct Channel *chptr,
 	 */
 	if ((*err = can_join(source_p, chptr, key, &next)) == 0)
 		return chptr;
+	else if (IsOverride(source_p))
+	{
+		sendto_realops_snomask(SNO_GENERAL, L_NETWIDE,
+				"%s is overriding JOIN to [%s]",
+				get_oper_name(source_p), chptr->chname);
+		return chptr;
+	}
 
-	/* User is +Q, or forwarding disabled */
-	if (IsNoForward(source_p) || !ConfigChannel.use_forward)
+	/* User is +Q */
+	if (IsNoForward(source_p))
 		return NULL;
 
 	while (depth < 16)
 	{
-		if (next == NULL)
-			return NULL;
 		chptr = find_channel(next);
 		/* Can only forward to existing channels */
 		if (chptr == NULL)
@@ -121,6 +130,8 @@ check_forward(struct Client *source_p, struct Channel *chptr,
 		i = can_join(source_p, chptr, key, &next);
 		if (i == 0)
 			return chptr;
+		if (next == NULL)
+			return NULL;
 		depth++;
 	}
 
@@ -252,10 +263,8 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 
 			if(moduledata.approved != 0)
 			{
-				if(moduledata.approved != ERR_CUSTOM)
-					send_join_error(source_p,
-							moduledata.approved,
-							name);
+				sendto_one(source_p, form_str(moduledata.approved),
+					   me.name, source_p->name, name);
 				continue;
 			}
 
@@ -272,9 +281,9 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 
 		if((rb_dlink_list_length(&source_p->user->channel) >=
 		    (unsigned long) ConfigChannel.max_chans_per_user) &&
-		   (!IsOper(source_p) ||
+		   (!IsExtendChans(source_p) ||
 		    (rb_dlink_list_length(&source_p->user->channel) >=
-		     (unsigned long) ConfigChannel.max_chans_per_user * 3)))
+		     (unsigned long) ConfigChannel.max_chans_per_user_large)))
 		{
 			sendto_one(source_p, form_str(ERR_TOOMANYCHANNELS),
 				   me.name, source_p->name, name);
@@ -293,6 +302,9 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 			}
 		}
 
+		if(!IsOper(source_p) && !IsExemptSpambot(source_p))
+			check_spambot_warning(source_p, name);
+
 		/* If check_forward returns NULL, they couldn't join and there wasn't a usable forward channel. */
 		if(!(chptr2 = check_forward(source_p, chptr, key, &i)))
 		{
@@ -301,13 +313,15 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 			 * -- dwr
 			 */
 			if(i != ERR_CUSTOM)
-				send_join_error(source_p, i, name);
+				sendto_one(source_p, form_str(i), me.name, source_p->name, name);
+
 			continue;
 		}
 		else if(chptr != chptr2)
 			sendto_one_numeric(source_p, ERR_LINKCHANNEL, form_str(ERR_LINKCHANNEL), name, chptr2->chname);
 
 		chptr = chptr2;
+
 
 		if(flags == 0 &&
 				!IsOper(source_p) && !IsExemptSpambot(source_p))
@@ -323,24 +337,33 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		}
 		chptr->join_count++;
 
-		/* debit user for join */
-		credit_client_join(source_p);
-
 		/* we send the user their join here, because we could have to
 		 * send a mode out next.
 		 */
 		struct membership *msptr = find_channel_membership(chptr, source_p); // at this point a membership is guaranteed.
-		if (chptr->mode.mode & MODE_CHANDELAY && !(flags & CHFL_CHANOP)) msptr->flags |= CHFL_DELAYED; // user is delayed. this state is stored locally
+		if (chptr->mode.mode & MODE_DELAYJOIN && !(flags & CHFL_CHANOP)) msptr->flags |= CHFL_DELAYED; // user is delayed. this state is stored locally
 		// and should be assumed if the channel is delayed. we don't care about desyncs as long as they don't affect op tracking and delayed isn't
 		// a privilege flag despite being stored in the same mask.
 
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 
-		/* its a new channel, set +nt and burst. */
+		/* its a new channel, set +ns and burst. */
 		if(flags & CHFL_CHANOP)
 		{
 			chptr->channelts = rb_current_time();
-			chptr->mode.mode |= ConfigChannel.autochanmodes;
+			if(ConfigChannel.automodes)
+			{
+				char * ch;
+				for(ch = ConfigChannel.automodes; *ch; *ch++)
+				{
+					chptr->mode.mode |= chmode_table[*ch].mode_type;
+				}
+			}
+			else
+			{
+				chptr->mode.mode |= MODE_TOPICLIMIT;
+				chptr->mode.mode |= MODE_NOPRIVMSGS;
+			}
 			modes = channel_modes(chptr, &me);
 
 			sendto_channel_local(ONLY_CHANOPS, chptr, ":%s MODE %s %s",
@@ -350,6 +373,21 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 				      ":%s SJOIN %ld %s %s :@%s",
 				      me.id, (long) chptr->channelts,
 				      chptr->chname, modes, source_p->id);
+
+			// This next addition was a challenge by TwinUsers.
+			if (strlen(ConfigChannel.autotopic)!=0 && strlen(ConfigChannel.autotopic)<=TOPICLEN) {
+				set_channel_topic(chptr, ConfigChannel.autotopic, me.name, rb_current_time());
+				sendto_server(client_p, chptr, CAP_TS6|CAP_EOPMOD, NOCAPS, ":%s ETB %ld %s %ld %s :%s",
+				              me.id, (long)chptr->channelts, chptr->chname, (long)chptr->topic_time, me.name,
+				              chptr->topic);
+				sendto_server(client_p, chptr, CAP_TS6|CAP_TB, CAP_EOPMOD, ":%s TB %s %ld %s :%s",
+				              me.id, chptr->chname, (long)chptr->topic_time, me.name,
+				              chptr->topic);
+				sendto_server(client_p, chptr, CAP_TS6, CAP_TB|CAP_EOPMOD, ":%s TOPIC %s %ld %s :%s",
+				              me.id, chptr->chname, (long)chptr->topic_time, me.name,
+				              chptr->topic);
+				// XXX - Due to automatic topic on channel create, should we deprecate non-TB/EOPMOD servers?
+			}
 		}
 		else
 		{
@@ -368,8 +406,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 
 			sendto_one(source_p, form_str(RPL_TOPICWHOTIME),
 				   me.name, source_p->name, chptr->chname,
-				   chptr->topic_info,
-				   (unsigned long)chptr->topic_time);
+				   chptr->topic_info, chptr->topic_time);
 		}
 
 		channel_member_names(chptr, source_p, 1, 0);
@@ -393,14 +430,13 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 static int
 ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
-	static char modebuf[MODEBUFLEN];
-	static char parabuf[MODEBUFLEN];
 	struct Channel *chptr;
 	static struct Mode mode;
 	time_t oldts;
 	time_t newts;
 	int isnew;
 	int keep_our_modes = YES;
+	int keep_new_modes = YES;
 	rb_dlink_node *ptr, *next_ptr;
 
 	/* special case for join 0 */
@@ -420,7 +456,8 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 	if(parv[2][0] == '&')
 		return 0;
 
-	char *mbuf = modebuf;
+	mbuf = modebuf;
+	ombuf = omodebuf;
 	mode.key[0] = mode.forward[0] = '\0';
 	mode.mode = mode.limit = mode.join_num = mode.join_time = 0;
 
@@ -433,7 +470,7 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 #ifdef IGNORE_BOGUS_TS
 	if(newts < 800000000)
 	{
-		sendto_realops_snomask(SNO_DEBUG, L_ALL,
+		sendto_realops_snomask(SNO_DEBUG, L_NETWIDE,
 				     "*** Bogus TS %ld on %s ignored from %s",
 				     (long) newts, chptr->chname, client_p->name);
 		newts = (oldts == 0) ? oldts : 800000000;
@@ -462,11 +499,13 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 		keep_our_modes = NO;
 		chptr->channelts = newts;
 	}
+	else
+		keep_new_modes = NO;
 
 	/* Lost the TS, other side wins, so remove modes on this side */
 	if(!keep_our_modes)
 	{
-		mbuf = set_final_mode(mbuf, parabuf, &mode, &chptr->mode);
+		set_final_mode(&mode, &chptr->mode);
 		chptr->mode = mode;
 		remove_our_modes(chptr, source_p);
 		RB_DLINK_FOREACH_SAFE(ptr, next_ptr, chptr->invites.head)
@@ -487,7 +526,12 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 					     ":%s MODE %s %s %s",
 					     source_p->servptr->name,
 					     chptr->chname, modebuf, parabuf);
-		*modebuf = *parabuf = '\0';
+		if(*omodebuf != '\0')
+			sendto_channel_local(ONLY_OPERS, chptr,
+					     ":%s MODE %s %s %s",
+					     source_p->servptr->name,
+					     chptr->chname, modebuf, parabuf);
+		*omodebuf = *modebuf = *parabuf = '\0';
 
 		/* since we're dropping our modes, we want to clear the mlock as well. --nenolod */
 		set_channel_mlock(client_p, source_p, chptr, NULL, FALSE);
@@ -502,8 +546,12 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 			chptr->join_count = 0;
 			chptr->join_delta = rb_current_time();
 		}
+		struct membership *msptr = find_channel_membership(chptr, source_p); // at this point a membership is guaranteed.
+		if (chptr->mode.mode & MODE_DELAYJOIN) msptr->flags |= CHFL_DELAYED; // user is delayed. this state is stored locally
+		// and should be assumed if the channel is delayed. we don't care about desyncs as long as they don't affect op tracking and delayed isn't
+		// a privilege flag despite being stored in the same mask.
 		chptr->join_count++;
-		send_channel_join(chptr, source_p);
+		send_channel_join(1, chptr, source_p);
 	}
 
 	sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
@@ -515,8 +563,6 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 static int
 ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
-	static char modebuf[MODEBUFLEN];
-	static char parabuf[MODEBUFLEN];
 	static char buf_uid[BUFSIZE];
 	static const char empty_modes[] = "0";
 	struct Channel *chptr;
@@ -531,6 +577,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	int fl;
 	int isnew;
 	int mlen_uid;
+	int len_nick;
 	int len_uid;
 	int len;
 	int joins = 0;
@@ -540,10 +587,6 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	int i, joinc = 0, timeslice = 0;
 	static char empty[] = "";
 	rb_dlink_node *ptr, *next_ptr;
-	const char *para[MAXMODEPARAMS];
-
-	if(parc < 5)
-		return 0;
 
 	if(!IsChannelName(parv[2]) || !check_channel_name(parv[2]))
 		return 0;
@@ -552,8 +595,8 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	if(*parv[2] == '&')
 		return 0;
 
-	modebuf[0] = parabuf[0] = mode.key[0] = mode.forward[0] = '\0';
-	mode.mode = mode.limit = mode.join_num = mode.join_time = 0;
+	omodebuf[0] = modebuf[0] = parabuf[0] = mode.key[0] = mode.forward[0] = '\0';
+	pargs = mode.mode = mode.limit = mode.join_num = mode.join_time = 0;
 
 	/* Hide connecting server on netburst -- jilles */
 	if (ConfigServerHide.flatten_links && !HasSentEob(source_p))
@@ -561,7 +604,8 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	else
 		fakesource_p = source_p;
 
-	char *mbuf = modebuf;
+	mbuf = modebuf;
+	ombuf = omodebuf;
 	newts = atol(parv[1]);
 
 	s = parv[3];
@@ -624,7 +668,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 #ifdef IGNORE_BOGUS_TS
 	if(newts < 800000000)
 	{
-		sendto_realops_snomask(SNO_DEBUG, L_ALL,
+		sendto_realops_snomask(SNO_DEBUG, L_NETWIDE,
 				     "*** Bogus TS %ld on %s ignored from %s",
 				     (long) newts, chptr->chname, client_p->name);
 
@@ -645,7 +689,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 
 	if(isnew)
 		chptr->channelts = newts;
-
+	
 	else if(newts == 0 || oldts == 0)
 		chptr->channelts = 0;
 	else if(newts == oldts)
@@ -654,15 +698,12 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	{
 		/* If configured, kick people trying to join +i/+k
 		 * channels by recreating them on split servers.
-		 * If the source has sent EOB, assume this is some
-		 * sort of hack by services. If cmode +i is set,
-		 * services can send kicks if needed; if the key
-		 * differs, services cannot kick in a race-free
-		 * manner so do so here.
+		 * Don't kick if the source has sent EOB (services
+		 * deopping everyone by TS-1 SJOIN).
 		 * -- jilles */
 		if (ConfigChannel.kick_on_split_riding &&
-				((!HasSentEob(source_p) &&
-				mode.mode & MODE_INVITEONLY) ||
+				!HasSentEob(source_p) &&
+				((mode.mode & MODE_INVITEONLY) ||
 		    (mode.key[0] != 0 && irccmp(mode.key, oldmode->key) != 0)))
 		{
 			struct membership *msptr;
@@ -725,7 +766,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 			chptr->join_count = chptr->join_delta = 0;
 	}
 
-	mbuf = set_final_mode(mbuf, parabuf, &mode, oldmode);
+	set_final_mode(&mode, oldmode);
 	chptr->mode = mode;
 
 	/* Lost the TS, other side wins, so remove modes on this side */
@@ -766,7 +807,11 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		sendto_channel_local(ALL_MEMBERS, chptr, ":%s MODE %s %s %s",
 				     fakesource_p->name, chptr->chname, modebuf, parabuf);
 
-	*modebuf = *parabuf = '\0';
+	if(*omodebuf != '\0')
+		sendto_channel_local(ONLY_OPERS, chptr, ":%s MODE %s %s %s",
+				     fakesource_p->name, chptr->chname, omodebuf, parabuf);
+
+	*omodebuf = *modebuf = *parabuf = '\0';
 
 	if(parv[3][0] != '0' && keep_new_modes)
 		modes = channel_modes(chptr, source_p);
@@ -778,10 +823,10 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	ptr_uid = buf_uid + mlen_uid;
 
 	mbuf = modebuf;
+	ombuf = omodebuf;
 	para[0] = para[1] = para[2] = para[3] = empty;
-	len_uid = 0;
-
-	int pargs = 0;
+	pargs = 0;
+	len_nick = len_uid = 0;
 
 	/* if theres a space, theres going to be more than one nick, change the
 	 * first space to \0, so s is just the first nick, and point p to the
@@ -800,14 +845,14 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 
 		for (i = 0; i < 6; i++)
 		{
-			if(*s == '*')
+			if(*s == '!')
 			{
-				fl |= CHFL_OPERBIZ;
+				fl |= CHFL_BOP;
 				s++;
 			}
 			else if(*s == '~')
 			{
-				fl |= CHFL_MANAGER;
+				fl |= CHFL_QOP;
 				s++;
 			}
 			else if(*s == '&')
@@ -817,7 +862,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 			}
 			else if(*s == '@')
 			{
-				fl |= CHFL_OP;
+				fl |= CHFL_CHANOP;
 				s++;
 			}
 			else if(*s == '%')
@@ -850,34 +895,40 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 
 		if(keep_new_modes)
 		{
-			if(fl & CHFL_OPERBIZ)
+			if(fl & CHFL_BOP)
 			{
-				*ptr_uid++ = '*';
+				*ptr_uid++ = '!';
+				len_nick++;
 				len_uid++;
 			}
-			if(fl & CHFL_MANAGER)
+			if(fl & CHFL_QOP)
 			{
 				*ptr_uid++ = '~';
+				len_nick++;
 				len_uid++;
 			}
 			if(fl & CHFL_SUPEROP)
 			{
 				*ptr_uid++ = '&';
+				len_nick++;
 				len_uid++;
 			}
 			if(fl & CHFL_CHANOP)
 			{
 				*ptr_uid++ = '@';
+				len_nick++;
 				len_uid++;
 			}
 			if(fl & CHFL_HALFOP)
 			{
 				*ptr_uid++ = '%';
+				len_nick++;
 				len_uid++;
 			}
 			if(fl & CHFL_VOICE)
 			{
 				*ptr_uid++ = '+';
+				len_nick++;
 				len_uid++;
 			}
 		}
@@ -893,18 +944,17 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		if(!IsMember(target_p, chptr))
 		{
 			add_user_to_channel(chptr, target_p, fl);
-			send_channel_join(chptr, target_p);
+			send_channel_join(1, chptr, target_p);
 			joins++;
 		}
 
-
-		// This STILL makes dogs whimper, years down the road.
-                if(fl & CHFL_OPERBIZ)
+		// This makes dogs whimper.
+                if(fl & CHFL_QOP)
                 {
-                        *mbuf++ = 'y';
+                        *mbuf++ = 'w';
                         para[pargs++] = target_p->name;
 
-                        if(fl & CHFL_MANAGER)
+                        if(fl & CHFL_BOP)
                         {
                                 /* its possible the +y has filled up MAXMODEPARAMS, if so, start
                                  * a new buffer
@@ -923,10 +973,10 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
                                         pargs = 0;
                                 }
 
-                                *mbuf++ = 'q';
+                                *mbuf++ = 'W';
                                 para[pargs++] = target_p->name;
                         }
-                        if(fl & CHFL_SUPEROP)
+                        if(fl & CHFL_SOP)
                         {
                                 /* its possible the +y has filled up MAXMODEPARAMS, if so, start
                                  * a new buffer
@@ -1015,11 +1065,34 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
                                 para[pargs++] = target_p->name;
                         }
                 }
-                else if(fl & CHFL_MANAGER)
+                else if(fl & CHFL_BOP)
                 {
-                        *mbuf++ = 'y';
+                        *mbuf++ = 'W';
                         para[pargs++] = target_p->name;
-                        if(fl & CHFL_SUPEROP)
+
+                        if(fl & CHFL_QOP)
+                        {
+                                /* its possible the +y has filled up MAXMODEPARAMS, if so, start
+                                 * a new buffer
+                                 */
+                                if(pargs >= MAXMODEPARAMS)
+                                {
+                                        *mbuf = '\0';
+                                        sendto_channel_local(ALL_MEMBERS, chptr,
+                                                        ":%s MODE %s %s %s %s %s %s",
+                                                        fakesource_p->name, chptr->chname,
+                                                        modebuf,
+                                                        para[0], para[1], para[2], para[3]);
+                                        mbuf = modebuf;
+                                        *mbuf++ = '+';
+                                        para[0] = para[1] = para[2] = para[3] = NULL;
+                                        pargs = 0;
+                                }
+
+                                *mbuf++ = 'w';
+                                para[pargs++] = target_p->name;
+                        }
+                        if(fl & CHFL_SOP)
                         {
                                 /* its possible the +y has filled up MAXMODEPARAMS, if so, start
                                  * a new buffer
@@ -1108,7 +1181,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
                                 para[pargs++] = target_p->name;
                         }
                 }
-                else if(fl & CHFL_SUPER)
+                else if(fl & CHFL_SOP)
 		{
 			*mbuf++ = 'a';
 			para[pargs++] = target_p->name;
@@ -1346,8 +1419,8 @@ do_join_0(struct Client *client_p, struct Client *source_p)
 	if(MyClient(source_p) && !IsFloodDone(source_p))
 		flood_endgrace(source_p);
 
-	sendto_server(client_p, NULL, CAP_TS6, NOCAPS, ":%s JOIN 0", use_id(source_p));
-
+	//sendto_server(client_p, NULL, CAP_TS6, NOCAPS, ":%s JOIN 0", use_id(source_p));
+	/* Instead of this, we will send a PART for all the channels the user is on. Much easier to track. */
 	while((ptr = source_p->user->channel.head))
 	{
 		if(MyConnect(source_p) &&
@@ -1356,7 +1429,11 @@ do_join_0(struct Client *client_p, struct Client *source_p)
 
 		msptr = ptr->data;
 		chptr = msptr->chptr;
-		sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s PART %s",
+		sendto_server(client_p, NULL, CAP_TS6, NOCAPS, ":%s PART %s :JOIN 0", use_id(source_p), chptr->chname);
+		sendto_one(source_p, ":%s!%s@%s PART %s :JOIN 0",
+				     source_p->name,
+				     source_p->username, source_p->host, chptr->chname);
+		if (!is_delayed(msptr)) sendto_channel_local_butone(source_p, ALL_MEMBERS, chptr, ":%s!%s@%s PART %s :JOIN 0",
 				     source_p->name,
 				     source_p->username, source_p->host, chptr->chname);
 		remove_user_from_channel(msptr);
@@ -1399,44 +1476,10 @@ check_channel_name_loc(struct Client *source_p, const char *name)
 	return 1;
 }
 
-/* send_join_error()
- *
- * input	- client to send to, reason, channel name
- * output	- none
- * side effects - error message sent to client
- */
 static void
-send_join_error(struct Client *source_p, int numeric, const char *name)
+set_final_mode(struct Mode *mode, struct Mode *oldmode)
 {
-	/* This stuff is necessary because the form_str macro only
-	 * accepts constants.
-	 */
-	switch (numeric)
-	{
-#define NORMAL_NUMERIC(i)						\
-		case i:							\
-			sendto_one(source_p, form_str(i),		\
-					me.name, source_p->name, name);	\
-			break
-
-		NORMAL_NUMERIC(ERR_BANNEDFROMCHAN);
-		NORMAL_NUMERIC(ERR_INVITEONLYCHAN);
-		NORMAL_NUMERIC(ERR_BADCHANNELKEY);
-		NORMAL_NUMERIC(ERR_CHANNELISFULL);
-		NORMAL_NUMERIC(ERR_NEEDREGGEDNICK);
-		NORMAL_NUMERIC(ERR_THROTTLE);
-
-		default:
-			sendto_one_numeric(source_p, numeric,
-					"%s :Cannot join channel", name);
-			break;
-	}
-}
-
-static char *
-set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmode)
-{
-	int dir = MODE_QUERY;
+	int dir = MODE_QUERY, odir = MODE_QUERY;
 	char *pbuf = parabuf;
 	int len;
 	int i;
@@ -1446,12 +1489,24 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 	{
 		if((mode->mode & chmode_flags[i]) && !(oldmode->mode & chmode_flags[i]))
 		{
-			if(dir != MODE_ADD)
+			if (chmode_table[i].set_func == chm_hidden)
 			{
-				*mbuf++ = '+';
-				dir = MODE_ADD;
+				if(odir != MODE_ADD)
+				{
+					*ombuf++ = '+';
+					odir = MODE_ADD;
+				}
+				*ombuf++ = i;
 			}
-			*mbuf++ = i;
+			else
+			{
+				if(dir != MODE_ADD)
+				{
+					*mbuf++ = '+';
+					dir = MODE_ADD;
+				}
+				*mbuf++ = i;
+			}
 		}
 	}
 
@@ -1460,12 +1515,24 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 	{
 		if((oldmode->mode & chmode_flags[i]) && !(mode->mode & chmode_flags[i]))
 		{
-			if(dir != MODE_DEL)
+			if (chmode_table[i].set_func == chm_hidden)
 			{
-				*mbuf++ = '-';
-				dir = MODE_DEL;
+				if(odir != MODE_DEL)
+				{
+					*ombuf++ = '-';
+					odir = MODE_DEL;
+				}
+				*ombuf++ = i;
 			}
-			*mbuf++ = i;
+			else
+			{
+				if(dir != MODE_DEL)
+				{
+					*mbuf++ = '-';
+					dir = MODE_DEL;
+				}
+				*mbuf++ = i;
+			}
 		}
 	}
 
@@ -1540,8 +1607,7 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 		len = rb_sprintf(pbuf, "%d:%d ", mode->join_num, mode->join_time);
 		pbuf += len;
 	}
-	if(mode->forward[0] && strcmp(oldmode->forward, mode->forward) &&
-			ConfigChannel.use_forward)
+	if(mode->forward[0] && strcmp(oldmode->forward, mode->forward))
 	{
 		if(dir != MODE_ADD)
 		{
@@ -1552,17 +1618,15 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 		len = rb_sprintf(pbuf, "%s ", mode->forward);
 		pbuf += len;
 	}
-
 	*mbuf = '\0';
-	return mbuf;
 }
 
 /*
  * remove_our_modes
  *
  * inputs	-
- * output	-
- * side effects	-
+ * output	- 
+ * side effects	- 
  */
 static void
 remove_our_modes(struct Channel *chptr, struct Client *source_p)
@@ -1574,7 +1638,7 @@ remove_our_modes(struct Channel *chptr, struct Client *source_p)
 	int count = 0;
 	int i;
 
-	char *mbuf = lmodebuf;
+	mbuf = lmodebuf;
 	*mbuf++ = '-';
 
 	for(i = 0; i < MAXMODEPARAMS; i++)
@@ -1677,15 +1741,14 @@ remove_ban_list(struct Channel *chptr, struct Client *source_p,
 	pbuf = lparabuf;
 
 	cur_len = mlen = rb_sprintf(lmodebuf, ":%s MODE %s -", source_p->name, chptr->chname);
-	char *mbuf = lmodebuf + mlen;
+	mbuf = lmodebuf + mlen;
 
 	RB_DLINK_FOREACH_SAFE(ptr, next_ptr, list->head)
 	{
 		banptr = ptr->data;
 
 		/* trailing space, and the mode letter itself */
-		plen = strlen(banptr->banstr) +
-			(banptr->forward ? strlen(banptr->forward) + 1 : 0) + 2;
+		plen = strlen(banptr->banstr) + 2;
 
 		if(count >= MAXMODEPARAMS || (cur_len + plen) > BUFSIZE - 4)
 		{
@@ -1703,10 +1766,7 @@ remove_ban_list(struct Channel *chptr, struct Client *source_p,
 
 		*mbuf++ = c;
 		cur_len += plen;
-		if (banptr->forward)
-			pbuf += rb_sprintf(pbuf, "%s$%s ", banptr->banstr, banptr->forward);
-		else
-			pbuf += rb_sprintf(pbuf, "%s ", banptr->banstr);
+		pbuf += rb_sprintf(pbuf, "%s ", banptr->banstr);
 		count++;
 
 		free_ban(banptr);

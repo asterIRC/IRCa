@@ -605,7 +605,7 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 				if (client_p != target_p && !delayed && is_delayed(msptr)) continue; // Showing undelayed users; this user is delayed.
 
 				/* space, possible "@+" prefix */
-				if(cur_len + strlen(target_p->name) + 3 >= BUFSIZE - 3)
+				if(cur_len + strlen(target_p->name) + 8 >= BUFSIZE - 3)
 				{
 					*(t - 1) = '\0';
 					sendto_one(client_p, "%s", lbuf);

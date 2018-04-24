@@ -535,7 +535,7 @@ check_forward(struct Client *source_p, struct Channel *chptr,
 		return 0;
 	}
 	/* don't forward to inconsistent target -- jilles */
-	if(chptr->chname[0] == '#' && forward[0] == '&')
+	if(!ChannelIsLocal(chptr->chname) && ChannelIsLocal(forward))
 	{
 		sendto_one_numeric(source_p, ERR_BADCHANNAME,
 				   form_str(ERR_BADCHANNAME), forward);

@@ -125,6 +125,44 @@ free_ban(struct Ban *bptr)
  * side effects - none
  */
 void
+send_channel_join(int isnew, struct Channel *chptr, struct Client *client_p)
+{
+	if (!IsClient(client_p))
+		return;
+
+	struct membership *msptr = find_channel_membership(chptr, client_p);
+	if (msptr == NULL) return; // Bail on this before it gets any worse... :\ XXX probably not necessary
+
+	if (MyClient(client_p) && isnew) {
+		if (IsCapable(client_p, CLICAP_EXTENDED_JOIN))
+			sendto_one(client_p, ":%s!%s@%s JOIN %s %s :%s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname,
+					     EmptyString(client_p->user->suser) ? "*" : client_p->user->suser,
+					     client_p->info);
+		else
+			sendto_one(client_p, ":%s!%s@%s JOIN %s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname);
+	}
+
+	if (is_delayed(msptr)) return; // probably auditorium
+
+	sendto_channel_local_with_capability_butone(client_p, ALL_MEMBERS, NOCAPS, CLICAP_EXTENDED_JOIN, chptr, ":%s!%s@%s JOIN %s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname);
+
+	sendto_channel_local_with_capability_butone(client_p, ALL_MEMBERS, CLICAP_EXTENDED_JOIN, NOCAPS, chptr, ":%s!%s@%s JOIN %s %s :%s",
+					     client_p->name, client_p->username, client_p->host, chptr->chname,
+					     EmptyString(client_p->user->suser) ? "*" : client_p->user->suser,
+					     client_p->info);
+}
+
+/*
+ * old_send_channel_join()
+ *
+ * input        - channel to join, client joining.
+ * output       - none
+ * side effects - none
+ */
+void
 send_channel_join(struct Channel *chptr, struct Client *client_p)
 {
 	if (!IsClient(client_p))
@@ -454,12 +492,12 @@ channel_pub_or_secret(struct Channel *chptr)
 
 /* channel_member_names()
  *
- * input	- channel to list, client to list to, show endofnames
+ * input	- channel to list, client to list to, show endofnames, show delay
  * output	-
  * side effects - client is given list of users on channel
  */
 void
-channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eon)
+channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eon, int delay)
 {
 	struct membership *msptr;
 	struct Client *target_p;
@@ -507,7 +545,7 @@ channel_member_names(struct Channel *chptr, struct Client *client_p, int show_eo
 			else
 			{
 				/* space, possible "@+" prefix */
-				if(cur_len + strlen(target_p->name) + 3 >= BUFSIZE - 3)
+				if(cur_len + strlen(target_p->name) + 7 >= BUFSIZE - 3)
 				{
 					*(t - 1) = '\0';
 					sendto_one(client_p, "%s", lbuf);
@@ -965,7 +1003,7 @@ flood_attack_channel(int p_or_n, struct Client *source_p, struct Channel *chptr,
 		{
 			if(chptr->flood_noticed == 0)
 			{
-				sendto_realops_snomask(SNO_BOTS, *chptr->chname == '&' ? L_ALL : L_NETWIDE,
+				sendto_realops_snomask(SNO_BOTS, ChannelIsLocal(*chptr->chname) ? L_ALL : L_NETWIDE,
 						     "Possible Flooder %s[%s@%s] on %s target: %s",
 						     source_p->name, source_p->username,
 						     source_p->orighost,
