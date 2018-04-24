@@ -1109,6 +1109,32 @@ conf_set_auth_passwd(void *data)
 }
 
 static void
+conf_set_auth_webircname(void *data)
+{
+	char *p;
+	char *user = NULL;
+	char *host = NULL;
+
+	host = data;
+
+	if(EmptyString(host))
+	{
+		conf_report_error("Warning -- webircname empty.");
+		return;
+	}
+
+	if(strlen(host) > HOSTLEN)
+	{
+		conf_report_error("Warning -- webircname length invalid.");
+		return;
+	}
+
+	rb_free(yy_aconf->webircname);
+	yy_aconf->webircname = rb_strdup(data);
+	yy_aconf->flags |= CONF_FLAGS_SPOOF_WEBCHAT;
+}
+
+static void
 conf_set_auth_spoof(void *data)
 {
 	char *p;
