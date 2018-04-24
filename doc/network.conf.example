@@ -43,6 +43,8 @@ network {
   # a modeless_chantype must also be a global or local chantype.
   # On a modeless channel, if an oper is feeling frisky, the channel could
   # become modeful.
+
+  # WHATEVER YOU DO... Don't. Put. Letters. Here.
   global_chantypes = "#+\"24680";
   local_chantypes = "&'-13579";
   modeless_chantypes = "+-369";

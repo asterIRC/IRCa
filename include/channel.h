@@ -26,6 +26,7 @@
 
 #ifndef INCLUDED_channel_h
 #define INCLUDED_channel_h
+#include "channel.h"
 
 #define MODEBUFLEN      200
 
@@ -224,16 +225,16 @@ typedef int (*ExtbanFunc)(const char *data, struct Client *client_p,
 #define IsMember(who, chan) ((who && who->user && \
                 find_channel_membership(chan, who)) ? 1 : 0)
 
-#define IsChannelName(name)	((name) && ( \
+#define IsChannelName(name)	((name) && !clean_nick(name) && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxmodeless, *(name)) != NULL) && (\
 		strlen(name) != 9 || !IsDigit(*(name))))
-#define ChannelHasModes(name)	((name) && ( \
+#define ChannelHasModes(name)	((name) && !clean_nick(name)  && ( \
 		strchr(ConfigChannel.chnampfxglobal, *(name)) != NULL || \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL) && ( \
 		strchr(ConfigChannel.chnampfxmodeless, *(name)) == NULL))
-#define ChannelIsLocal(name)	((name) && ( \
+#define ChannelIsLocal(name)	((name) && !clean_nick(name)  && ( \
 		strchr(ConfigChannel.chnampfxlocal, *(name)) != NULL))
 
 /* extban function results */

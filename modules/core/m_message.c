@@ -270,10 +270,10 @@ build_target_list(enum message_type msgtype, struct Client *client_p,
 		 * here plain old channel msg?
 		 */
 
-		if(IsChanPrefix(*nick))
+		if(IsChannelName(nick))
 		{
 			/* ignore send of local channel to a server (should not happen) */
-			if(IsServer(client_p) && *nick == '&')
+			if(IsServer(client_p) && ChannelIsLocal(nick))
 				continue;
 
 			if((chptr = find_channel(nick)) != NULL)
@@ -389,7 +389,7 @@ build_target_list(enum message_type msgtype, struct Client *client_p,
 			continue;
 		}
 
-		if(IsServer(client_p) && *nick == '=' && nick[1] == '#')
+		if(IsServer(client_p) && *nick == '=' && IsChannelName(nick+1))
 		{
 			nick++;
 			if((chptr = find_channel(nick)) != NULL)
