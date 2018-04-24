@@ -267,7 +267,7 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 				continue;
 			}
 
-			flags = ChannelHasModes(name)? CHFL_CHANOP : 0;
+			flags = (ChannelHasModes(name)? CHFL_CHANOP : 0);
 			newchan = 1;
 		}
 
