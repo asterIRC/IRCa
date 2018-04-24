@@ -874,11 +874,11 @@ can_join(struct Client *source_p, struct Channel *chptr, const char *key, const 
 	if(chptr->mode.mode & MODE_REGONLY && EmptyString(source_p->user->suser))
 		i = ERR_NEEDREGGEDNICK;
 	/* join throttling stuff --nenolod */
-	else if(chptr->mode.join_num > 0 && chptr->mode.join_time > 0)
+	else if(chptr->mode.join.num > 0 && chptr->mode.join.time > 0)
 	{
 		if ((rb_current_time() - chptr->join_delta <=
-			chptr->mode.join_time) && (chptr->join_count >=
-			chptr->mode.join_num))
+			chptr->mode.join.time) && (chptr->join_count >=
+			chptr->mode.join.num))
 			i = ERR_THROTTLE;
 	}
 
@@ -1111,14 +1111,14 @@ check_spambot_warning(struct Client *source_p, const char *name)
 		else
 		{
 			if((rb_current_time() -
-			    (source_p->localClient->last_join_time)) < GlobalSetOptions.spam_time)
+			    (source_p->localClient->last_join.time)) < GlobalSetOptions.spam_time)
 			{
 				/* oh, its a possible spambot */
 				source_p->localClient->join_leave_count++;
 			}
 		}
 		if(name != NULL)
-			source_p->localClient->last_join_time = rb_current_time();
+			source_p->localClient->last_join.time = rb_current_time();
 		else
 			source_p->localClient->last_leave_time = rb_current_time();
 	}
@@ -1280,13 +1280,13 @@ channel_modes(struct Channel *chptr, struct Client *client_p)
 			pbuf += rb_sprintf(pbuf, " %s", chptr->mode.key);
 	}
 
-	if(chptr->mode.join_num)
+	if(chptr->mode.join.num)
 	{
 		*mbuf++ = 'j';
 
 		if(pbuf > buf2 || !IsClient(client_p) || IsMember(client_p, chptr))
-			pbuf += rb_sprintf(pbuf, " %d:%d", chptr->mode.join_num,
-					   chptr->mode.join_time);
+			pbuf += rb_sprintf(pbuf, " %d:%d", chptr->mode.join.num,
+					   chptr->mode.join.time);
 	}
 
 	if(*chptr->mode.forward &&

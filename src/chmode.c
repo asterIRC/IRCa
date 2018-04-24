@@ -226,11 +226,12 @@ allow_mode_change(struct Client *source_p, struct Channel *chptr, int alevel,
 		*errors |= SM_ERR_MLOCK;
 		return 0;
 	}
-	if((strchr(ConfigChannel.halfopscannotuse, c) != NULL &&
-	   (alevel != CHFL_HALFOP)) || (alevel != ONLY_CHANOPS))
+	int isnohalf = 0;
+	if((strchr(ConfigChannel.halfopscannotuse, c) != NULL && (alevel & CHFL_HALFOP)
+	&& ~(alevel & ONLY_CHANOPS)) && ~(alevel & CHFL_HALFOP|ONLY_CHANOPS))
 	{
 		if(!(*errors & SM_ERR_NOOPS))
-			sendto_one(source_p, form_str(ERR_CHANOPRIVSNEEDED),
+			sendto_one(source_p, form_str(isnohalf?ERR_CHANOPRIVSNEEDED+3000:ERR_CHANOPRIVSNEEDED),
 				   me.name, source_p->name, chptr->chname);
 		*errors |= SM_ERR_NOOPS;
 		return 0;
@@ -1061,7 +1062,7 @@ chm_operbiz(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count].id = targ_p->id;
 		mode_changes[mode_count++].arg = targ_p->name;
 
-		mstptr->flags |= CHFL_CHANOP;
+		mstptr->flags |= CHFL_OPERBIZ;
 	}
 	else
 	{
@@ -1131,7 +1132,7 @@ chm_manager(struct Client *source_p, struct Channel *chptr,
 
 	if(dir == MODE_ADD)
 	{
-		if(targ_p == source_p && mstptr->flags & CHFL_CHANOP)
+		if(targ_p == source_p && mstptr->flags & CHFL_MANAGER)
 			return;
 
 		mode_changes[mode_count].letter = c;
@@ -1140,7 +1141,7 @@ chm_manager(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count].id = targ_p->id;
 		mode_changes[mode_count++].arg = targ_p->name;
 
-		mstptr->flags |= CHFL_CHANOP;
+		mstptr->flags |= CHFL_MANAGER;
 	}
 	else
 	{
@@ -1157,7 +1158,7 @@ chm_manager(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count].id = targ_p->id;
 		mode_changes[mode_count++].arg = targ_p->name;
 
-		mstptr->flags &= ~CHFL_CHANOP;
+		mstptr->flags &= ~CHFL_MANAGER;
 	}
 }
 
@@ -1211,7 +1212,7 @@ chm_superop(struct Client *source_p, struct Channel *chptr,
 
 	if(dir == MODE_ADD)
 	{
-		if(targ_p == source_p && mstptr->flags & CHFL_CHANOP)
+		if(targ_p == source_p && mstptr->flags & CHFL_SUPEROP)
 			return;
 
 		mode_changes[mode_count].letter = c;
@@ -1220,7 +1221,7 @@ chm_superop(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count].id = targ_p->id;
 		mode_changes[mode_count++].arg = targ_p->name;
 
-		mstptr->flags |= CHFL_CHANOP;
+		mstptr->flags |= CHFL_SUPEROP;
 	}
 	else
 	{
@@ -1237,7 +1238,7 @@ chm_superop(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count].id = targ_p->id;
 		mode_changes[mode_count++].arg = targ_p->name;
 
-		mstptr->flags &= ~CHFL_CHANOP;
+		mstptr->flags &= ~CHFL_SUPEROP;
 	}
 }
 
@@ -1331,8 +1332,8 @@ chm_helpop(struct Client *source_p, struct Channel *chptr,
 	if (!candomodechange (source_p, chptr, alevel, "half-operator", CHFL_HALFOP, errors))
 		return;
 
-//	if(!allow_mode_change(source_p, chptr, alevel, errors, c))
-//		return;
+	if(!allow_mode_change(source_p, chptr, alevel, errors, c))
+		return;
 
 	if((dir == MODE_QUERY) || (parc <= *parn))
 		return;
@@ -1547,16 +1548,16 @@ chm_throttle(struct Client *source_p, struct Channel *chptr,
 
 		(*parn)++;
 
-		chptr->mode.join_num = joins;
-		chptr->mode.join_time = timeslice;
+		chptr->mode.join.num = joins;
+		chptr->mode.join.time = timeslice;
 	}
 	else if(dir == MODE_DEL)
 	{
-		if(!chptr->mode.join_num)
+		if(!chptr->mode.join.num)
 			return;
 
-		chptr->mode.join_num = 0;
-		chptr->mode.join_time = 0;
+		chptr->mode.join.num = 0;
+		chptr->mode.join.time = 0;
 		chptr->join_count = 0;
 		chptr->join_delta = 0;
 
@@ -1785,7 +1786,7 @@ struct ChannelMode chmode_table[256] =
   {chm_nosuch,	0 },			/* A */
   {chm_nosuch,	0 },			/* B */
   {chm_nosuch,  0 },			/* C */
-  {chm_nosuch,	0 },			/* D */
+  {chm_simple,	MODE_CHANDELAY },	/* D */
   {chm_nosuch,	0 },			/* E */
   {chm_simple,	MODE_FREETARGET },	/* F */
   {chm_nosuch,	0 },			/* G */
@@ -1793,19 +1794,19 @@ struct ChannelMode chmode_table[256] =
   {chm_ban,	CHFL_INVEX },           /* I */
   {chm_nosuch,	0 },			/* J */
   {chm_nosuch,	0 },			/* K */
-  {chm_staff,	MODE_EXLIMIT },		/* L */
+  {chm_nosuch,	0 },			/* L */
   {chm_ban,	CHFL_QUIET },		/* M */
   {chm_nosuch,	0 },			/* N */
   {chm_nosuch,	0 },			/* O */
-  {chm_staff,	MODE_PERMANENT },	/* P */
+  {chm_nosuch,	0 },			/* P */
   {chm_simple,	MODE_DISFORWARD },	/* Q */
-  {chm_nosuch,	0 },			/* R */
+  {chm_simple,	MODE_REGONLY },		/* R */
   {chm_nosuch,	0 },			/* S */
   {chm_nosuch,	0 },			/* T */
   {chm_nosuch,	0 },			/* U */
   {chm_nosuch,	0 },			/* V */
   {chm_nosuch,	0 },			/* W */
-  {chm_nosuch,	0 },			/* X */
+  {chm_staff,	MODE_EXLIMIT },		/* X */
   {chm_nosuch,	0 },			/* Y */
   {chm_nosuch,	0 },			/* Z */
   {chm_nosuch,	0 },
@@ -1821,7 +1822,7 @@ struct ChannelMode chmode_table[256] =
   {chm_ban,	CHFL_EXCEPTION },	/* e */
   {chm_forward,	0 },			/* f */
   {chm_simple,	MODE_FREEINVITE },	/* g */
-  {chm_nosuch,	0 },			/* h */
+  {chm_halfop,	0 },			/* h */
   {chm_simple,	MODE_INVITEONLY },	/* i */
   {chm_throttle, 0 },			/* j */
   {chm_key,	0 },			/* k */
@@ -1830,16 +1831,16 @@ struct ChannelMode chmode_table[256] =
   {chm_simple,	MODE_NOPRIVMSGS },	/* n */
   {chm_op,	0 },			/* o */
   {chm_simple,	MODE_PRIVATE },		/* p */
-  {chm_manager,	0 },		/* q */
-  {chm_simple,  MODE_REGONLY },		/* r */
+  {chm_manager,	0 },			/* q */
+  {chm_staff,  MODE_PERMANENT },	/* r */
   {chm_simple,	MODE_SECRET },		/* s */
   {chm_simple,	MODE_TOPICLIMIT },	/* t */
-  {chm_nosuch,	0 },			/* u */
+  {chm_simple,	MODE_OPMODERATE },	/* u */
   {chm_voice,	0 },			/* v */
   {chm_nosuch,	0 },			/* w */
   {chm_nosuch,	0 },			/* x */
   {chm_operbiz,	0 },			/* y */
-  {chm_simple,	MODE_OPMODERATE },	/* z */
+  {chm_nosuch,	0 },	/* z */
 
   {chm_nosuch,  0 },			/* 0x7b */
   {chm_nosuch,  0 },			/* 0x7c */

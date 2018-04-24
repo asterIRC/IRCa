@@ -43,6 +43,18 @@ struct Mode
 	char key[KEYLEN];
 	unsigned int join_num;
 	unsigned int join_time;
+	struct {
+		unsigned int num;
+		unsigned int time;
+	} message;
+	struct {
+		unsigned int num;
+		unsigned int time;
+	} notice;
+	struct {
+		unsigned int num;
+		unsigned int time;
+	} join;
 	char forward[LOC_CHANNELLEN + 1];
 };
 

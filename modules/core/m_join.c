@@ -315,8 +315,8 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 
 		/* add the user to the channel */
 		add_user_to_channel(chptr, source_p, flags);
-		if (chptr->mode.join_num &&
-			rb_current_time() - chptr->join_delta >= chptr->mode.join_time)
+		if (chptr->mode.join.num &&
+			rb_current_time() - chptr->join_delta >= chptr->mode.join.time)
 		{
 			chptr->join_count = 0;
 			chptr->join_delta = rb_current_time();
@@ -423,7 +423,7 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 
 	char *mbuf = modebuf;
 	mode.key[0] = mode.forward[0] = '\0';
-	mode.mode = mode.limit = mode.join_num = mode.join_time = 0;
+	mode.mode = mode.limit = mode.join.num = mode.join.time = 0;
 
 	if((chptr = get_or_create_channel(source_p, parv[2], &isnew)) == NULL)
 		return 0;
@@ -497,8 +497,8 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 	if(!IsMember(source_p, chptr))
 	{
 		add_user_to_channel(chptr, source_p, CHFL_PEON);
-		if (chptr->mode.join_num &&
-			rb_current_time() - chptr->join_delta >= chptr->mode.join_time)
+		if (chptr->mode.join.num &&
+			rb_current_time() - chptr->join_delta >= chptr->mode.join.time)
 		{
 			chptr->join_count = 0;
 			chptr->join_delta = rb_current_time();
@@ -554,7 +554,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		return 0;
 
 	modebuf[0] = parabuf[0] = mode.key[0] = mode.forward[0] = '\0';
-	mode.mode = mode.limit = mode.join_num = mode.join_time = 0;
+	mode.mode = mode.limit = mode.join.num = mode.join.time = 0;
 
 	/* Hide connecting server on netburst -- jilles */
 	if (ConfigServerHide.flatten_links && !HasSentEob(source_p))
@@ -579,8 +579,8 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		case 'j':
 			sscanf(parv[4 + args], "%d:%d", &joinc, &timeslice);
 			args++;
-			mode.join_num = joinc;
-			mode.join_time = timeslice;
+			mode.join.num = joinc;
+			mode.join.time = timeslice;
 			if(parc < 5 + args)
 				return 0;
 			break;
@@ -709,12 +709,12 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 			mode.limit = oldmode->limit;
 		if(strcmp(mode.key, oldmode->key) < 0)
 			strcpy(mode.key, oldmode->key);
-		if(oldmode->join_num > mode.join_num ||
-				(oldmode->join_num == mode.join_num &&
-				 oldmode->join_time > mode.join_time))
+		if(oldmode->join.num > mode.join.num ||
+				(oldmode->join.num == mode.join.num &&
+				 oldmode->join.time > mode.join.time))
 		{
-			mode.join_num = oldmode->join_num;
-			mode.join_time = oldmode->join_time;
+			mode.join.num = oldmode->join.num;
+			mode.join.time = oldmode->join.time;
 		}
 		if(irccmp(mode.forward, oldmode->forward) < 0)
 			strcpy(mode.forward, oldmode->forward);
@@ -722,7 +722,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	else
 	{
 		/* If setting -j, clear join throttle state -- jilles */
-		if (!mode.join_num)
+		if (!mode.join.num)
 			chptr->join_count = chptr->join_delta = 0;
 	}
 
@@ -1490,7 +1490,7 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 		len = rb_sprintf(pbuf, "%s ", oldmode->key);
 		pbuf += len;
 	}
-	if(oldmode->join_num && !mode->join_num)
+	if(oldmode->join.num && !mode->join.num)
 	{
 		if(dir != MODE_DEL)
 		{
@@ -1530,7 +1530,7 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 		len = rb_sprintf(pbuf, "%s ", mode->key);
 		pbuf += len;
 	}
-	if(mode->join_num && (oldmode->join_num != mode->join_num || oldmode->join_time != mode->join_time))
+	if(mode->join.num && (oldmode->join.num != mode->join.num || oldmode->join.time != mode->join.time))
 	{
 		if(dir != MODE_ADD)
 		{
@@ -1538,7 +1538,7 @@ set_final_mode(char *mbuf, char *parabuf, struct Mode *mode, struct Mode *oldmod
 			dir = MODE_ADD;
 		}
 		*mbuf++ = 'j';
-		len = rb_sprintf(pbuf, "%d:%d ", mode->join_num, mode->join_time);
+		len = rb_sprintf(pbuf, "%d:%d ", mode->join.num, mode->join.time);
 		pbuf += len;
 	}
 	if(mode->forward[0] && strcmp(oldmode->forward, mode->forward) &&
