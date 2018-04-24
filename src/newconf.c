@@ -1803,7 +1803,7 @@ conf_set_service_name(void *data)
 }
 
 static void conf_set_strdup (char *cfgname, int maxlen, char **targvar, char *value) {
-	char errmsg[BUFSIZE]; int actlen
+	char errmsg[BUFSIZE]; int actlen;
 	if ((actlen = strlen(value)) >maxlen) {
 		rb_snprintf(errmsg, BUFSIZE-1, "Ignoring %s -- value length %i exceeds maximum %i", cfgname, actlen, maxlen);
 		conf_report_error(errmsg);
