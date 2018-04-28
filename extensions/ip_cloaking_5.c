@@ -710,8 +710,8 @@ do_host_cloak_ipv6(const char *inbuf, char *outbuf)
 	);
     rb_snprintf(alpha, 255, "%s", c);
     rb_snprintf(beta, 255, "%s.%s.%s", a, bp, b);
-    rb_snprintf(gamma, 255 "%s.%s", a, bp);
-    rb_snprintf(d, 255 "%s.%s", a);
+    rb_snprintf(gamma, 255, "%s.%s", a, bp);
+    rb_snprintf(d, 255, "%s.%s", a);
     rb_snprintf(outbuf, 255, "%s:%s:%s:%s:i6msk", do_ip_cloak_part(alpha), do_ip_cloak_part(beta), do_ip_cloak_part(gamma), do_ip_cloak_part(d));
     rb_free(alpha);
     rb_free(beta);

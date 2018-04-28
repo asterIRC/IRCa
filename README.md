@@ -1,3 +1,19 @@
+# irca
+
+IRCa is a set of modifications to the reference implementation of the IRCv3.1 server component,
+known as [Charybdis][Charybdis].
+
+   [Charybdis]: https://github.com/charybdis-ircd/charybdis
+
+Main features that IRCa builds onto Charybdis are: the ability to not have equals signs in the
+config files and still have everything work,
+
+# Main differences between this release and Charybdis
+
+ * FOR DEBIAN USERS: You are highly encouraged to ensure that the following packages are installed:
+   * `apt install bison flex build-essential libssl-dev autoconf`
+   * This will ensure minimum headache generation during installation.
+
 # charybdis
 
 Charybdis is a reference implementation of the IRCv3.1 server component.  It is meant to be
@@ -11,6 +27,7 @@ used with an IRCv3-capable services implementation such as [Atheme][atheme] or [
  * A supported platform
  * A working dynamic load library.
  * A working lex.  Solaris /usr/ccs/bin/lex appears to be broken, on this system flex should be used.
+ * A working brain and knowledge of Unix.
 
 # feature specific requirements
 
@@ -33,7 +50,10 @@ used with an IRCv3-capable services implementation such as [Atheme][atheme] or [
 
  * To report bugs in charybdis, visit us on IRC at chat.freenode.net #charybdis
 
- * Please read doc/index.txt to get an overview of the current documentation.
+ * to report bugs in irca, visit us on irc at irc.umbrellix.net #coder-com
+
+ * Please read doc/index.txt to get an overview of the current documentation
+   and state of the onion.
 
  * The files, /etc/services, /etc/protocols, and /etc/resolv.conf, SHOULD be
    readable by the user running the server in order for ircd to start with

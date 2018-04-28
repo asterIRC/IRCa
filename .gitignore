@@ -37,3 +37,4 @@ tools/genssl
 tools/mkpasswd
 tools/viconf
 include/serno.h
+run/
