@@ -86,6 +86,19 @@ m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		return 0;
 	}
 
+
+	if((p = strchr(parv[2], ',')))
+		*p = '\0';
+
+	user = parv[2];		/* strtoken(&p2, parv[2], ","); */
+
+	if(!(who = find_chasing(source_p, user, &chasing)))
+	{
+		return 0;
+	}
+
+	msptr = find_channel_membership(chptr, who);
+
 	if(!IsServer(source_p))
 	{
 		msptr = find_channel_membership(chptr, source_p);
@@ -97,7 +110,8 @@ m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *p
 			return 0;
 		}
 
-		if(get_channel_access(source_p, msptr, MODE_ADD) < CHFL_CHANOP)
+//		if(get_channel_access(source_p, msptr, MODE_ADD) < CHFL_CHANOP)
+		if(!is_better_op(msptr, find_channel_membership(chptr, who)))
 		{
 			if(MyConnect(source_p))
 			{
@@ -136,18 +150,6 @@ m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		 *     -Dianora
 		 */
 	}
-
-	if((p = strchr(parv[2], ',')))
-		*p = '\0';
-
-	user = parv[2];		/* strtoken(&p2, parv[2], ","); */
-
-	if(!(who = find_chasing(source_p, user, &chasing)))
-	{
-		return 0;
-	}
-
-	msptr = find_channel_membership(chptr, who);
 
 	if(msptr != NULL)
 	{
