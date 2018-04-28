@@ -60,7 +60,7 @@ DECLARE_MODULE_AV1(kick, NULL, NULL, kick_clist, NULL, NULL, "$Revision: 3317 $"
 static int
 m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
-	struct membership *msptr;
+	struct membership *msptr, *mstptr;
 	struct Client *who;
 	struct Channel *chptr;
 	int chasing = 0;
@@ -149,9 +149,9 @@ m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		 */
 	}
 
-	msptr = find_channel_membership(chptr, who);
+	mstptr = find_channel_membership(chptr, who);
 
-	if(msptr != NULL)
+	if(mstptr != NULL)
 	{
 		if(MyClient(source_p) && IsService(who))
 		{
@@ -166,7 +166,7 @@ m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *p
 
 			hookdata.client = source_p;
 			hookdata.chptr = chptr;
-			hookdata.msptr = msptr;
+			hookdata.msptr = mstptr;
 			hookdata.target = who;
 			hookdata.approved = 1;
 			hookdata.dir = MODE_ADD;	/* ensure modules like override speak up */
@@ -200,7 +200,7 @@ m_kick(struct Client *client_p, struct Client *source_p, int parc, const char *p
 		sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
 			      ":%s KICK %s %s :%s",
 			      use_id(source_p), chptr->chname, use_id(who), comment);
-		remove_user_from_channel(msptr);
+		remove_user_from_channel(mstptr);
 	}
 	else if (MyClient(source_p))
 		sendto_one_numeric(source_p, ERR_USERNOTINCHANNEL,
