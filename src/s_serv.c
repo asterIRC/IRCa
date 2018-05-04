@@ -735,7 +735,7 @@ burst_TS6(struct Client *client_p)
 		DICTIONARY_FOREACH(md, &iter, chptr->metadata)
 		{
 			sendto_one(client_p, ":%s ENCAP * METADATA ADD %s %s :%s",
-			          use_id(&me), chptr->name, md->name, md->value);
+			          use_id(&me), chptr->chname, md->name, md->value);
                 }
 
 		hchaninfo.chptr = chptr;
