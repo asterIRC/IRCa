@@ -179,7 +179,7 @@ inetport(struct Listener *listener)
 	 * At first, open a new socket
 	 */
 
-	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, ListenerIsSCTP ? 132 : 0, "Listener socket");
+	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, ListenerIsSCTP(listener) ? 132 : 0, "Listener socket");
 
 #ifdef RB_IPV6
 	if(listener->addr.ss_family == AF_INET6)
