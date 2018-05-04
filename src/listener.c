@@ -381,7 +381,7 @@ inetport_sctp(struct Listener *listener)
 }
 
 static struct Listener *
-find_listener(struct rb_sockaddr_storage *addr)
+find_listener(struct rb_sockaddr_storage *addr, int sctp)
 {
 	struct Listener *listener = NULL;
 	struct Listener *last_closed = NULL;
@@ -390,6 +390,9 @@ find_listener(struct rb_sockaddr_storage *addr)
 	{
 		if(addr->ss_family != listener->addr.ss_family)
 			continue;
+
+		if (!!sctp && !!!(listener->sctp)) continue;
+		if (!!!sctp && !!(listener->sctp)) continue;
 
 		switch(addr->ss_family)
 		{
@@ -499,7 +502,7 @@ add_listener(int port, const char *vhost_ip, int family, int ssl, int defer_acce
 		default:
 			break;
 	}
-	if((listener = find_listener(&vaddr)))
+	if((listener = find_listener(&vaddr, sctp)))
 	{
 		if(listener->F != NULL)
 			return;
