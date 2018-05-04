@@ -950,25 +950,25 @@ conf_set_listen_port_both_both(void *data, int ssl, int sctp)
 static void
 conf_set_listen_sctpport(void *data)
 {
-	conf_set_listen_port_both(data, 0, 1);
+	conf_set_listen_port_both_both(data, 0, 1);
 }
 
 static void
 conf_set_listen_sctpsslport(void *data)
 {
-	conf_set_listen_port_both(data, 1, 1);
+	conf_set_listen_port_both_both(data, 1, 1);
 }
 
 static void
 conf_set_listen_port(void *data)
 {
-	conf_set_listen_port_both(data, 0, 0);
+	conf_set_listen_port_both_both(data, 0, 0);
 }
 
 static void
 conf_set_listen_sslport(void *data)
 {
-	conf_set_listen_port_both(data, 1, 0);
+	conf_set_listen_port_both_both(data, 1, 0);
 }
 
 static void
