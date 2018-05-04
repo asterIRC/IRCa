@@ -55,7 +55,7 @@
 #include "reject.h"
 #include "sslproc.h"
 #include "capability.h"
-#include "dictionary.h"
+#include "irc_dictionary.h"
 #include "s_assert.h"
 
 #ifndef INADDR_NONE
