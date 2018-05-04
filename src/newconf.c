@@ -912,7 +912,7 @@ conf_set_listen_defer_accept(void *data)
 }
 
 static void
-conf_set_listen_port_both(void *data, int ssl)
+conf_set_listen_port_both_both(void *data, int ssl, int sctp)
 {
 	conf_parm_t *args = data;
 	for (; args; args = args->next)
@@ -948,15 +948,27 @@ conf_set_listen_port_both(void *data, int ssl)
 }
 
 static void
+conf_set_listen_sctpport(void *data)
+{
+	conf_set_listen_port_both(data, 0, 1);
+}
+
+static void
+conf_set_listen_sctpsslport(void *data)
+{
+	conf_set_listen_port_both(data, 1, 1);
+}
+
+static void
 conf_set_listen_port(void *data)
 {
-	conf_set_listen_port_both(data, 0);
+	conf_set_listen_port_both(data, 0, 0);
 }
 
 static void
 conf_set_listen_sslport(void *data)
 {
-	conf_set_listen_port_both(data, 1);
+	conf_set_listen_port_both(data, 1, 0);
 }
 
 static void

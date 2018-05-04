@@ -283,6 +283,54 @@ find_channel_status(struct membership *mp, int combine)
 	// buffer is *~_@__ -> we return "*~@"
 }
 
+// for TS6 (sigh)
+const char *
+find_channel_status_ts(struct membership *mp, int combine)
+{
+	static char buffer[7] = { (char)0, (char)0, (char)0, (char)0, (char)0, (char)0, (char)0 };
+	struct config_channel_entry *Cc = &ConfigChannel;
+	char *p;
+
+	//p = buffer;
+
+/*	out with this bullpucky.
+	if(is_chanop(msptr))
+	{
+		if(!combine)
+			return "@";
+		*p++ = '@';
+	}
+
+	if(is_voiced(msptr))
+		*p++ = '+';
+*/
+	// see what i meant in s_conf.[ch] about waste there being
+	// efficiency here? I've got one big snprintf()
+	// and now I only need to waste all but the first
+	// character for my return value if we aren't combining.
+	// -- reinhilde malik
+	rb_snprintf(buffer, sizeof(buffer), "%s%s%s%s%s%s",
+		is_operbiz(mp) ? "*" : "",
+		is_manager(mp) ? "~" : "",
+		is_superop(mp) ? "&" : "",
+		is_chanop(mp) ? "@" : "",
+		is_halfop(mp) ? "%" : "",
+		is_voiced(mp) ? "+" : ""
+	);
+
+	// *p = '\0';
+
+	if (!combine) {
+		p = buffer + 1; // skip a char.
+		*p = 0; // identical to '\0' but less effort...
+	}
+	return buffer; // e.g. where 0 is NULL & _ is "":
+	// member is +qhv and not combining...
+	// buffer is _~__%+ -> ~%+ -> ~0+ -> we return what looks like "~"
+	// member is +yqo and we combine.
+	// buffer is *~_@__ -> we return "*~@"
+}
+
 /* add_user_to_channel()
  *
  * input	- channel to add client to, client to add, channel flags

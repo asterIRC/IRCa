@@ -149,7 +149,7 @@ char *user_mode_names[256] = {
 	/* 0x30 */ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0x3F */
 	NULL,			/* @ */
-	"sctpclient",		/* A */
+	NULL,		/* A */
 	NULL,			/* B */
 	NULL,			/* C */
 	"deaf",			/* D */

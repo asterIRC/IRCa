@@ -305,15 +305,16 @@ oneitem: qstring
 loadmodule:
 	  LOADMODULE QSTRING
             {
-                char *m_bn;
-                m_bn = rb_basename((char *) $2);
+#ifndef STATIC_MODULES
+              char *m_bn;
 
-                if (findmodule_byname(m_bn) == NULL)
-	        {
-	            load_one_module($2, 0);
-		}
+              m_bn = rb_basename((char *) $2);
 
-                rb_free(m_bn);
+              if (findmodule_byname(m_bn) == -1)
+	          load_one_module($2, 0);
+
+              rb_free(m_bn);
+#endif
 	    }
 	  ';'
           ;

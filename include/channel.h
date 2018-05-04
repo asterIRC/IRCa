@@ -266,6 +266,7 @@ extern int can_join(struct Client *source_p, struct Channel *chptr,
 
 extern struct membership *find_channel_membership(struct Channel *, struct Client *);
 extern const char *find_channel_status(struct membership *msptr, int combine);
+extern const char *find_channel_status_ts(struct membership *msptr, int combine);
 extern void add_user_to_channel(struct Channel *, struct Client *, int flags);
 extern void remove_user_from_channel(struct membership *);
 extern void remove_user_from_channels(struct Client *);

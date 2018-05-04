@@ -580,6 +580,8 @@ burst_TS6(struct Client *client_p)
 	hook_data_channel hchaninfo;
 	rb_dlink_node *ptr;
 	rb_dlink_node *uptr;
+	struct Metadata *md;
+	struct DictionaryIter iter;
 	char *t;
 	int tlen, mlen;
 	int cur_len = 0;
@@ -624,6 +626,12 @@ burst_TS6(struct Client *client_p)
 			sendto_one(client_p, ":%s ENCAP * CERTFP :%s",
 					use_id(target_p), target_p->certfp);
 
+		DICTIONARY_FOREACH(md, &iter, target_p->metadata)
+		{
+			sendto_one(client_p, ":%s ENCAP * METADATA ADD %s %s :%s",
+			          use_id(&me), use_id(target_p), md->name, md->value);
+                }
+
 		if(!IsCapable(client_p, CAP_EUID))
 		{
 			if(IsDynSpoof(target_p))
@@ -647,7 +655,7 @@ burst_TS6(struct Client *client_p)
 	{
 		chptr = ptr->data;
 
-		if(*chptr->chname != '#')
+		if(ChannelIsLocal(chptr->chname))
 			continue;
 
 		cur_len = mlen = rb_sprintf(buf, ":%s SJOIN %ld %s %s :", me.id,
@@ -661,12 +669,20 @@ burst_TS6(struct Client *client_p)
 			msptr = uptr->data;
 
 			tlen = strlen(use_id(msptr->client_p)) + 1;
+			if(is_operbiz(msptr))
+				tlen++;
+			if(is_manager(msptr))
+				tlen++;
+			if(is_superop(msptr))
+				tlen++;
 			if(is_chanop(msptr))
+				tlen++;
+			if(is_halfop(msptr))
 				tlen++;
 			if(is_voiced(msptr))
 				tlen++;
 
-			if(cur_len + tlen >= BUFSIZE - 3)
+			if(cur_len + tlen >= BUFSIZE - 7)
 			{
 				*(t-1) = '\0';
 				sendto_one(client_p, "%s", buf);
@@ -674,7 +690,7 @@ burst_TS6(struct Client *client_p)
 				t = buf + mlen;
 			}
 
-			rb_sprintf(t, "%s%s ", find_channel_status(msptr, 1),
+			rb_sprintf(t, "%s%s ", find_channel_status_ts(msptr, 1),
 				   use_id(msptr->client_p));
 
 			cur_len += tlen;
@@ -700,7 +716,7 @@ burst_TS6(struct Client *client_p)
 			burst_modes_TS6(client_p, chptr, &chptr->invexlist, 'I');
 
 		if(rb_dlink_list_length(&chptr->quietlist) > 0)
-			burst_modes_TS6(client_p, chptr, &chptr->quietlist, 'q');
+			burst_modes_TS6(client_p, chptr, &chptr->quietlist, 'M');
 
 		if(IsCapable(client_p, CAP_TB) && chptr->topic != NULL)
 			sendto_one(client_p, ":%s TB %s %ld %s%s:%s",
@@ -713,6 +729,13 @@ burst_TS6(struct Client *client_p)
 			sendto_one(client_p, ":%s MLOCK %ld %s :%s",
 				   me.id, (long) chptr->channelts, chptr->chname,
 				   EmptyString(chptr->mode_lock) ? "" : chptr->mode_lock);
+
+
+		DICTIONARY_FOREACH(md, &iter, chptr->metadata)
+		{
+			sendto_one(client_p, ":%s ENCAP * METADATA ADD %s %s :%s",
+			          use_id(&me), chptr->name, md->name, md->value);
+                }
 
 		hchaninfo.chptr = chptr;
 		call_hook(h_burst_channel, &hchaninfo);

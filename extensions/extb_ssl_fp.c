@@ -1,6 +1,6 @@
 /* SSL extban type: matches ssl users */
 /* This file is available under the same conditions as the rest of
-   https://github.com/asterIRC/irca, and by extension, the rest
+   https://github.com/asterIRC/ircd-chatd, and by extension, the rest
    of Charybdis. */
 
 #include "stdinc.h"
