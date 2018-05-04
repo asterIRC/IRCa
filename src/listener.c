@@ -151,7 +151,9 @@ show_ports(struct Client *source_p)
 			   get_listener_port(listener),
 			   IsOperAdmin(source_p) ? listener->name : me.name,
 			   listener->ref_count, (listener->active) ? "active" : "disabled",
-			   listener->ssl ? " ssl" : "");
+			   listener->ssl ? " ssl" : ""
+			   ListenerIsSCTP(listener) ? " sctp" : ""
+			);
 	}
 }
 
@@ -179,7 +181,7 @@ inetport(struct Listener *listener)
 	 * At first, open a new socket
 	 */
 
-	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, ListenerIsSCTP(listener) ? 132 : 0, "Listener socket");
+	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, ListenerIsSCTP(listener) ? IPPROTO_SCTP : IPPROTO_TCP, "Listener socket");
 
 #ifdef RB_IPV6
 	if(listener->addr.ss_family == AF_INET6)
@@ -492,7 +494,7 @@ add_connection(struct Listener *listener, rb_fde_t *F, struct sockaddr *sai, str
 	if (listener->ssl)
 	{
 		rb_fde_t *xF[2];
-		if(rb_socketpair(AF_UNIX, SOCK_STREAM, 0, &xF[0], &xF[1], "Incoming ssld Connection") == -1)
+ 		if(rb_socketpair(AF_UNIX, SOCK_STREAM, 0, &xF[0], &xF[1], "Incoming ssld Connection") == -1)
 		{
 			SetIOError(new_client);
 			exit_client(new_client, new_client, new_client, "Fatal Error");
