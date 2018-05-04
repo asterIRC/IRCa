@@ -627,7 +627,7 @@ add_connection(struct Listener *listener, rb_fde_t *F, struct sockaddr *sai, str
 		SetSSL(new_client);
 	}
 
-	if (ListenerIsSCTP(listener)) SetSCTP(new_client);
+	if (!!(listener->sctp)) SetSCTP(new_client);
 
 	new_client->localClient->listener = listener;
 

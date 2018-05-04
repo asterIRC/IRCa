@@ -629,6 +629,9 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 	if (IsSSL(source_p))
 		source_p->umodes |= UMODE_SSLCLIENT;
 
+	if (IsSCTP(source_p))
+		source_p->umodes |= UMODE_SCTPCLIENT;
+
 	if (source_p->umodes & UMODE_INVISIBLE)
 		Count.invisi++;
 
