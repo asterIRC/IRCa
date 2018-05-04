@@ -923,6 +923,7 @@ conf_set_listen_port_both_both(void *data, int ssl, int sctp)
 				("listener::port argument is not an integer " "-- ignoring.");
 			continue;
 		}
+		conf_report_error("sctp is %s, ssl is %s, port is %d", sctp?"ON":"OFF", ssl?"ON":"OFF", args->v.number);
                 if(listener_address == NULL)
                 {
 			add_listener(args->v.number, listener_address, AF_INET, ssl, ssl || yy_defer_accept, sctp);
