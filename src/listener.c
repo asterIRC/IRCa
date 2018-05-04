@@ -151,7 +151,7 @@ show_ports(struct Client *source_p)
 			   get_listener_port(listener),
 			   IsOperAdmin(source_p) ? listener->name : me.name,
 			   listener->ref_count, (listener->active) ? "active" : "disabled",
-			   listener->ssl ? " ssl" : ""
+			   listener->ssl ? " ssl" : "",
 			   ListenerIsSCTP(listener) ? " sctp" : ""
 			);
 	}
