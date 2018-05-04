@@ -406,7 +406,7 @@ add_listener(int port, const char *vhost_ip, int family, int ssl, int defer_acce
 
 	listener->F = NULL;
 	listener->ssl = ssl;
-	listener->flags |= sctp ? LISTENFLAG_SCTP : 0x0;
+	if (sctp != 0) listener->flags |= LISTENFLAG_SCTP;
 	listener->defer_accept = defer_accept;
 
 	if(inetport(listener))
