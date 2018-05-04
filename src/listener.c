@@ -333,7 +333,7 @@ find_listener(struct rb_sockaddr_storage *addr)
  * the format "255.255.255.255"
  */
 void
-add_listener(int port, const char *vhost_ip, int family, int ssl, int defer_accept)
+add_listener(int port, const char *vhost_ip, int family, int ssl, int defer_accept, int sctp)
 {
 	struct Listener *listener;
 	struct rb_sockaddr_storage vaddr;
@@ -406,6 +406,7 @@ add_listener(int port, const char *vhost_ip, int family, int ssl, int defer_acce
 
 	listener->F = NULL;
 	listener->ssl = ssl;
+	listener->flags |= LISTENFLAG_SCTP;
 	listener->defer_accept = defer_accept;
 
 	if(inetport(listener))

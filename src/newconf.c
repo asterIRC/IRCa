@@ -925,9 +925,9 @@ conf_set_listen_port_both_both(void *data, int ssl, int sctp)
 		}
                 if(listener_address == NULL)
                 {
-			add_listener(args->v.number, listener_address, AF_INET, ssl, ssl || yy_defer_accept);
+			add_listener(args->v.number, listener_address, AF_INET, ssl, ssl || yy_defer_accept, sctp);
 #ifdef RB_IPV6
-			add_listener(args->v.number, listener_address, AF_INET6, ssl, ssl || yy_defer_accept);
+			add_listener(args->v.number, listener_address, AF_INET6, ssl, ssl || yy_defer_accept, sctp);
 #endif
                 }
 		else
@@ -940,7 +940,7 @@ conf_set_listen_port_both_both(void *data, int ssl, int sctp)
 #endif
 				family = AF_INET;
 
-			add_listener(args->v.number, listener_address, family, ssl, ssl || yy_defer_accept);
+			add_listener(args->v.number, listener_address, family, ssl, ssl || yy_defer_accept, sctp);
 
                 }
 
