@@ -28,6 +28,7 @@
 #include "hook.h"
 #include "client.h"
 #include "channel.h"
+#include "s_user.h"
 #include "ircd.h"
 #include "send.h"
 
