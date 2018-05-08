@@ -47,6 +47,7 @@ void _moddeinit(void) {
 
 static void commchancheck (struct Client *source_p, struct Client *target_p) {
 	struct membership *msptr; struct Channel *chptr;
+	rb_dlink_node *ptr;
 	RB_DLINK_FOREACH(ptr, target_p->user->channel.head)
 	{
 		msptr = ptr->data; chptr = msptr->chptr;
