@@ -53,7 +53,7 @@ static void on_oper_up (hook_data_client *hdata)
 
 	if (SvsNoOp)
 	{
-		sendto_one_numeric(source_p, ERR_NOOPERHOST,
+		sendto_one_numeric(client_p, ERR_NOOPERHOST,
 		":This server is under quarantine. Only remote opers and Services can provide oper access.");
 		hdata->approved++;
 	}
@@ -148,6 +148,7 @@ static int me_grant(struct Client *client_p, struct Client *source_p, int parc, 
 
 static int me_svsnoop(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
+	struct Client *target_p;
 	rb_dlink_node *ptr;
 	rb_dlink_node *next_ptr;
 	// ENCAP * SVSNOOP +our.name
@@ -170,7 +171,9 @@ static int me_svsnoop(struct Client *client_p, struct Client *source_p, int parc
 		target_p = ptr->data;
 		if (SvsNoOp) do_grant(source_p, target_p, "%deoper");
 	}
+
 	sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s has quarantined %s.", source_p->name, me.name);
+	return 0;
 }
 
 static int do_grant(struct Client *source_p, struct Client *target_p, const char *new_privset)
@@ -179,11 +182,11 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 	struct PrivilegeSet *privset = 0;
 	char  privname[76];
 
-	rb_snprintf(&privname, 75, "!%s", target_p->name);
+	rb_snprintf(privname, 75, "!%s", target_p->name);
 
 	if (!strcmp(new_privset, "deoper"))
 	{
-		if (!IsAnyOper(target_p))
+		if (!IsOper(target_p))
 		{
 			sendto_one_notice(source_p, ":You can't deoper someone who isn't an oper.");
 			return 0;
