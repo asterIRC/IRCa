@@ -292,4 +292,6 @@ numerics[905] = ":%s 905 %s :SASL message too long";
 numerics[906] = ":%s 906 %s :SASL authentication aborted";
 numerics[907] = ":%s 907 %s :You have already completed SASL authentication";
 numerics[908] = ":%s 908 %s %s :are available SASL mechanisms";
+
+numerics[1998] = ":%s NOTICE %s :(\x02%s\x02) %s";
 }

@@ -385,5 +385,6 @@
 #define RPL_SASLMECHS		908
 
 #define ERR_LAST_ERR_MSG     999
+#define RPL__SNOTICE		1998 // is actually sent as NOTICE
 
 #endif /* INCLUDED_numeric_h */

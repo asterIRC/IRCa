@@ -348,8 +348,6 @@ m_join(struct Client *client_p, struct Client *source_p, int parc, const char *p
 			if (ChannelHasModes(name)) {
 				sendto_channel_local(ONLY_CHANOPS, chptr, ":%s MODE %s %s",
 					     me.name, chptr->chname, modes);
-				sendto_channel_local(ALL_MEMBERS, chptr, ":%s NOTICE %s :%s",
-				             me.name, chptr->chname, "Welcome to your new channel. This type of channel has modes. You'd know this from the type of channel you joined.");
 			}
 
 			sendto_server(client_p, chptr, CAP_TS6, NOCAPS,
@@ -450,7 +448,7 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 	if(!isnew && !newts && oldts)
 	{
 		sendto_channel_local(ALL_MEMBERS, chptr,
-				     ":%s NOTICE %s :*** Notice -- TS for %s changed from %ld to 0",
+				     ":%s NOTICE %s :(\x02Notice\x02) TS for %s changed from %ld to 0",
 				     me.name, chptr->chname, chptr->chname, (long) oldts);
 		sendto_realops_snomask(SNO_GENERAL, L_ALL,
 				     "Server %s changing TS on %s from %ld to 0",
@@ -483,7 +481,7 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 		/* If setting -j, clear join throttle state -- jilles */
 		chptr->join_count = chptr->join_delta = 0;
 		sendto_channel_local(ALL_MEMBERS, chptr,
-				     ":%s NOTICE %s :*** Notice -- TS for %s changed from %ld to %ld",
+				     ":%s NOTICE %s :(\x02Notice\x02) TS for %s changed from %ld to %ld",
 				     me.name, chptr->chname, chptr->chname,
 				     (long) oldts, (long) newts);
 		/* Update capitalization in channel name, this makes the
@@ -641,7 +639,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 	if(!isnew && !newts && oldts)
 	{
 		sendto_channel_local(ALL_MEMBERS, chptr,
-				     ":%s NOTICE %s :*** Notice -- TS for %s "
+				     ":%s NOTICE %s :(\x02Notice\x02) TS for %s "
 				     "changed from %ld to 0",
 				     me.name, chptr->chname, chptr->chname, (long) oldts);
 		sendto_realops_snomask(SNO_GENERAL, L_ALL,
@@ -758,7 +756,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		chptr->bants++;
 
 		sendto_channel_local(ALL_MEMBERS, chptr,
-				     ":%s NOTICE %s :*** Notice -- TS for %s changed from %ld to %ld",
+				     ":%s NOTICE %s :(\x02Notice\x02) TS for %s changed from %ld to %ld",
 				     me.name, chptr->chname, chptr->chname,
 				     (long) oldts, (long) newts);
 		/* Update capitalization in channel name, this makes the

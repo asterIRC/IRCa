@@ -390,7 +390,7 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 
 	if(!valid_hostname(source_p->host))
 	{
-		sendto_one_notice(source_p, ":*** Notice -- You have an illegal character in your hostname");
+		sendto_one_notice(source_p, ":(\x02Notice\x02) You have an illegal character in your hostname");
 
 		rb_strlcpy(source_p->host, source_p->sockhost, sizeof(source_p->host));
  	}
@@ -407,7 +407,7 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 	if(IsConfSSLNeeded(aconf) && !IsSSL(source_p))
 	{
 		ServerStats.is_ref++;
-		sendto_one_notice(source_p, ":*** Notice -- You need to use SSL/TLS to use this server");
+		sendto_one_notice(source_p, ":(\x02Notice\x02) You need to use SSL/TLS to use this server");
 		exit_client(client_p, source_p, &me, "Use SSL/TLS");
 		return (CLIENT_EXITED);
 	}
@@ -420,7 +420,7 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 		if(IsNeedIdentd(aconf))
 		{
 			ServerStats.is_ref++;
-			sendto_one_notice(source_p, ":*** Notice -- You need to install identd to use this server");
+			sendto_one_notice(source_p, ":(\x02Notice\x02) You need to install identd to use this server");
 			exit_client(client_p, source_p, &me, "Install identd");
 			return (CLIENT_EXITED);
 		}
@@ -447,7 +447,7 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 	if(IsNeedSasl(aconf) && !*user->suser)
 	{
 		ServerStats.is_ref++;
-		sendto_one_notice(source_p, ":*** Notice -- You need to identify via SASL to use this server");
+		sendto_one_notice(source_p, ":(\x02Notice\x02) You need to identify via SASL to use this server");
 		exit_client(client_p, source_p, &me, "SASL access only");
 		return (CLIENT_EXITED);
 	}
@@ -607,7 +607,7 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 			     get_client_class(source_p), source_p->info);
 
 	sendto_realops_snomask(SNO_CCONNEXT, L_ALL,
-			"CLICONN %s %s %s %s %s %s 0 %s",
+			"CLICONN %s %s %s %s %s %s 0 :%s",
 			source_p->name, source_p->username, source_p->orighost,
 			show_ip(NULL, source_p) ? ipaddr : "255.255.255.255",
 			get_client_class(source_p),
@@ -1348,8 +1348,8 @@ user_welcome(struct Client *source_p)
 
 	if(ConfigFileEntry.short_motd)
 	{
-		sendto_one_notice(source_p, ":*** Notice -- motd was last changed at %s", user_motd_changed);
-		sendto_one_notice(source_p, ":*** Notice -- Please read the motd if you haven't read it");
+		sendto_one_notice(source_p, ":(\x02Notice\x02) motd was last changed at %s", user_motd_changed);
+		sendto_one_notice(source_p, ":(\x02Notice\x02) Please read the motd if you haven't read it");
 
 		sendto_one(source_p, form_str(RPL_MOTDSTART),
 			   me.name, source_p->name, me.name);

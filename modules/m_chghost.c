@@ -119,7 +119,7 @@ do_chghost(struct Client *source_p, struct Client *target_p,
 		/* sending this remotely may disclose important
 		 * routing information -- jilles */
 		if (is_encap ? MyClient(target_p) : !ConfigServerHide.flatten_links)
-			sendto_one_notice(target_p, ":*** Notice -- %s attempted to change your hostname to %s (invalid)",
+			sendto_one_notice(target_p, ":(\x02Notice\x02) %s attempted to change your hostname to %s (invalid)",
 					source_p->name, newhost);
 		return 0;
 	}
