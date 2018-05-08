@@ -22,14 +22,6 @@
 
 static void h_helpop_whois(hook_data_client *);
 static void h_helpop_high_whois(hook_data_client *);
-mapi_hfn_list_av1 whois_helpop_hfnlist[] = {
-	{ "umode_changed", (hookfn) check_umode_change },
-	{ "doing_whois",	(hookfn) h_helpop_whois },
-	{ "doing_whois_global",	(hookfn) h_helpop_whois },
-	{ "doing_whois_top",	(hookfn) h_helpop_high_whois },
-	{ "doing_whois_top_global",	(hookfn) h_helpop_high_whois },
-	{ NULL, NULL }
-};
 
 static void check_umode_change(void *data);
 char *helpopstring = "";
@@ -126,6 +118,14 @@ _moddeinit(void)
 	remove_conf_item("general", "helpop_unreal_loc");
 	construct_umodebuf();
 }
+mapi_hfn_list_av1 whois_helpop_hfnlist[] = {
+	{ "umode_changed", (hookfn) check_umode_change },
+	{ "doing_whois",	(hookfn) h_helpop_whois },
+	{ "doing_whois_global",	(hookfn) h_helpop_whois },
+	{ "doing_whois_top",	(hookfn) h_helpop_high_whois },
+	{ "doing_whois_top_global",	(hookfn) h_helpop_high_whois },
+	{ NULL, NULL }
+};
 
 DECLARE_MODULE_AV1(whois_helpop, _modinit, _moddeinit, NULL, NULL,
 			whois_helpop_hfnlist, "$Revision: 3526 $");
