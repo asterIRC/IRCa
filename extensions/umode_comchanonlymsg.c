@@ -45,7 +45,7 @@ void _moddeinit(void) {
 	construct_umodebuf();
 }
 
-static void commchancheck (struct Client *source_p, struct Client *target_p) {
+static int commchancheck (struct Client *source_p, struct Client *target_p) {
 	struct membership *msptr; struct Channel *chptr;
 	rb_dlink_node *ptr;
 	RB_DLINK_FOREACH(ptr, target_p->user->channel.head)
@@ -58,7 +58,7 @@ static void commchancheck (struct Client *source_p, struct Client *target_p) {
 }
 
 void
-checkthatuserisssl(void *vdata) {
+checkthatuseriscomm(void *vdata) {
 	hook_data_privmsg_user *Hd = (hook_data_privmsg_user*)vdata;
 
 	if (Hd->target_p->umodes & user_modes['G']) {
@@ -73,7 +73,7 @@ checkthatuserisssl(void *vdata) {
 }
 
 mapi_hfn_list_av1 commchancallerid_hfnlist[] = {
-	{"privmsg_user", (hookfn)checkthatuserisssl},
+	{"privmsg_user", (hookfn)checkthatuseriscomm},
 	{NULL, NULL}
 };
 
