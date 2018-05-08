@@ -18,10 +18,12 @@
 #include "s_newconf.h"
 #include "newconf.h"
 
+#define IsOperHelpop(x)	(HasPrivilege((x), "oper:helpop"))
 
 static void h_helpop_whois(hook_data_client *);
 static void h_helpop_high_whois(hook_data_client *);
 mapi_hfn_list_av1 whois_helpop_hfnlist[] = {
+	{ "umode_changed", (hookfn) check_umode_change },
 	{ "doing_whois",	(hookfn) h_helpop_whois },
 	{ "doing_whois_global",	(hookfn) h_helpop_whois },
 	{ "doing_whois_top",	(hookfn) h_helpop_high_whois },
@@ -35,6 +37,36 @@ char helpoploc = 0;
 
 #define IsUnrealStyle()	(helpoploc != 0)
 #define IsChatdStyle()	(helpoploc == 0)
+
+static void
+check_umode_change(void *vdata)
+{
+	hook_data_umode_changed *data = (hook_data_umode_changed *)vdata;
+	struct Client *source_p = data->client;
+
+	if (!MyClient(source_p))
+		return;
+
+	if (data->oldumodes & UMODE_OPER && !IsOper(source_p))
+		source_p->umodes &= ~user_modes['h'];
+
+	/* didn't change +p umode, we don't need to do anything */
+	if (!((data->oldumodes ^ source_p->umodes) & user_modes['h']))
+		return;
+
+	if (source_p->umodes & user_modes['h'])
+	{
+		if (!IsOperHelpop(source_p))
+		{
+			sendto_one_notice(source_p, ":[\x02Error\x02] You need the privilege oper:helpop for this usermode to work.");
+			source_p->umodes &= ~user_modes['h'];
+			return;
+		}
+
+		sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s has marked themself available for help.",
+				       get_oper_name(source_p));
+	}
+}
 
 static void
 conf_set_helpopstring(void *data)
@@ -72,6 +104,9 @@ static void h_helpop_high_whois (hook_data_client *data)
 static int
 _modinit(void)
 {
+	user_modes['h'] = find_umode_slot();
+	user_mode_names['h'] = "helpop";
+
 	/* add the usermode to the available slot */
 	add_conf_item("general", "helpopstring", CF_QSTRING, conf_set_helpopstring);
 	add_conf_item("general", "helpop_unreal_loc", CF_YESNO, conf_set_helpoploc);
@@ -83,6 +118,9 @@ _modinit(void)
 static void
 _moddeinit(void)
 {
+	user_modes['h'] = 0;
+	user_mode_names['h'] = 0;
+
 	/* disable the umode and remove it from the available list */
 	remove_conf_item("general", "helpopstring");
 	remove_conf_item("general", "helpop_unreal_loc");
