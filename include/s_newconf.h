@@ -96,10 +96,11 @@ struct remote_conf
 #define SHARED_TDLINE	0x0800
 #define SHARED_PDLINE	0x1000
 #define SHARED_UNDLINE	0x2000
+#define SHARED_GRANT	0x4000
 
 #define SHARED_ALL	(SHARED_TKLINE | SHARED_PKLINE | SHARED_UNKLINE |\
 			SHARED_PXLINE | SHARED_TXLINE | SHARED_UNXLINE |\
-			SHARED_TRESV | SHARED_PRESV | SHARED_UNRESV)
+			SHARED_TRESV | SHARED_PRESV | SHARED_UNRESV | SHARED_GRANT)
 #define CLUSTER_ALL	(SHARED_ALL | SHARED_LOCOPS)
 
 /* flags used in hub/leaf */
@@ -202,6 +203,7 @@ struct server_conf
 #define SERVER_TB		0x0010
 #define SERVER_AUTOCONN		0x0020
 #define SERVER_SSL		0x0040
+#define SERVER_SCTP		0x0040
 
 #define ServerConfIllegal(x)	((x)->flags & SERVER_ILLEGAL)
 #define ServerConfVhosted(x)	((x)->flags & SERVER_VHOSTED)
@@ -210,6 +212,7 @@ struct server_conf
 #define ServerConfTb(x)		((x)->flags & SERVER_TB)
 #define ServerConfAutoconn(x)	((x)->flags & SERVER_AUTOCONN)
 #define ServerConfSSL(x)	((x)->flags & SERVER_SSL)
+#define ServerConfSCTP(x)	((x)->flags & SERVER_SCTP)
 
 extern struct server_conf *make_server_conf(void);
 extern void free_server_conf(struct server_conf *);

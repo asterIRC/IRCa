@@ -362,6 +362,7 @@ static struct mode_table connect_table[] = {
 	{ "encrypted",	SERVER_ENCRYPTED	},
 	{ "topicburst",	SERVER_TB		},
 	{ "ssl",	SERVER_SSL		},
+	{ "sctp",	SERVER_SCTP		},
 	{ NULL,		0			},
 };
 
@@ -376,6 +377,7 @@ static struct mode_table cluster_table[] = {
 	{ "resv",	SHARED_PRESV	},
 	{ "tresv",	SHARED_TRESV	},
 	{ "unresv",	SHARED_UNRESV	},
+	{ "svsoper",	SHARED_GRANT	},
 	{ "all",	CLUSTER_ALL	},
 	{NULL, 0}
 };
@@ -397,6 +399,7 @@ static struct mode_table shared_table[] =
 	{ "unresv",	SHARED_UNRESV	},
 	{ "locops",	SHARED_LOCOPS	},
 	{ "rehash",	SHARED_REHASH	},
+	{ "svsoper",	SHARED_GRANT	},
 	{ "all",	SHARED_ALL	},
 	{ "none",	0		},
 	{NULL, 0}
