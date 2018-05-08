@@ -38,19 +38,12 @@ int SvsNoOp = 0;
 static void on_oper_up (hook_data_client *hdata);
 
 mapi_clist_av1 grant_clist[] = { &grant_msgtab, &svsnoop_msgtab, NULL };
-mapi_hfn_list_av1 whois_helpop_hfnlist[] = {
+mapi_hfn_list_av1 grant_hfnlist[] = {
 	{ "opering_up", (hookfn) on_oper_up },
 	{ NULL, NULL }
 };
 
-DECLARE_MODULE_AV1(grant, NULL, NULL, grant_clist, NULL, NULL, "$Revision$");
-
-
-static struct mode_table oper_table[] = {
-	{"encrypted",		OPER_ENCRYPTED		},
-	{"need_ssl",		OPER_NEEDSSL		},
-	{NULL, 0}
-};
+DECLARE_MODULE_AV1(grant, NULL, NULL, grant_clist, NULL, grant_hfnlist, "$Revision$");
 
 static void on_oper_up (hook_data_client *hdata)
 {
