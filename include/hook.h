@@ -124,7 +124,7 @@ typedef struct
 	const char *text;
 	int approved;
 	struct {
-		char mode[2]; //waste here is more efficient elsewhere
+		char *mode; //waste here is more efficient elsewhere
 		char *reasoning; // this is what our err is
 	} whynot;
 } hook_data_privmsg_channel;
@@ -137,7 +137,7 @@ typedef struct
 	const char *text;
 	int approved;
 	struct {
-		char mode[2]; //waste here is more efficient elsewhere
+		char *mode; //waste here is more efficient elsewhere
 		char *umode; // this is what our err is
 		char *targnotify; // informed.
 	} whynot;
