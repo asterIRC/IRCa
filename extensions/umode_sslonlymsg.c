@@ -53,7 +53,7 @@ checkthatuserisssl(void *vdata) {
 		{
 			Hd->approved = UMODE_CALLERID;
 			Hd->whynot.mode = "t";
-			Hd->whynot.err_umodeg = "server-side caller identification unless the source is using SSL";
+			Hd->whynot.umode = "server-side caller identification unless the source is using SSL";
 			Hd->whynot.targnotify = "The user refuses reception of messages from non-SSL users. You should reconnect using SSL rather than wait for an accept. Most clients support it.";
 		}
 	}

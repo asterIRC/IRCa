@@ -66,7 +66,7 @@ checkthatuseriscomm(void *vdata) {
 		{
 			Hd->approved = UMODE_CALLERID;
 			Hd->whynot.mode = "G";
-			Hd->whynot.err_umodeg = "server-side caller identification with the exception of common channels";
+			Hd->whynot.umode = "server-side caller identification with the exception of common channels";
 			Hd->whynot.targnotify = "Chances are that the user doesn't want messages from people they don't know and are not in common channels with. If they want your messages, they should /accept you soon.";
 		}
 	}
