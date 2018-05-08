@@ -238,7 +238,6 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
 		      sjmode!=0 ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
 		      me.id, (long) chptr->channelts,
 		      chptr->chname, modes, sjmode!=0 ? sjmode : '\0', target_p->id);
-	}
         target_p->localClient->last_join_time = rb_current_time();
         del_invite(chptr, target_p);
 
