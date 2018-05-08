@@ -784,9 +784,9 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
         }
     }
 
-    for (i = 0; i < 61; i = i + 1) {
+    for (i = 0; i < 61; i = i + 2) {
         if (i >= hostlen && i >= 8) break;
-        sprintf(buf, "%c", hash[i]);
+        sprintf(buf, "%.2X", hash[i]);
         strcat(output,buf);
     }
 
