@@ -169,7 +169,7 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
         sendto_server(NULL, chptr, NOCAPS, NOCAPS,
                       type ? ":%s SJOIN %ld %s + :%c%s" : ":%s SJOIN %ld %s + :%s%s",
                       me.id, (long) chptr->channelts,
-                      chptr->chname, type ? sjmode : "", target_p->id);
+                      chptr->chname, type ? sjmode : '\0', target_p->id);
 
         sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
                              target_p->name, target_p->username,
@@ -212,10 +212,10 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
         chptr = get_or_create_channel(target_p, newch, NULL);
 	chptr->channelts = rb_current_time();
         add_user_to_channel(chptr, target_p, type);
-	if(ConfigChannel.automodes)
+	if(ConfigChannel.autochanmodes)
 	{
 		char * ch;
-		for(ch = ConfigChannel.automodes; *ch; *ch++)
+		for(ch = ConfigChannel.autochanmodes; *ch; *ch++)
 		{
 			chptr->mode.mode |= chmode_table[*ch].mode_type;
 		}
@@ -237,7 +237,7 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
 	sendto_server(NULL, chptr, CAP_TS6, NOCAPS,
 		      sjmode!=0 ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
 		      me.id, (long) chptr->channelts,
-		      chptr->chname, modes, sjmode!=0 ? sjmode : "", target_p->id);
+		      chptr->chname, modes, sjmode!=0 ? sjmode : '\0', target_p->id);
 	}
         target_p->localClient->last_join_time = rb_current_time();
         del_invite(chptr, target_p);
@@ -348,7 +348,7 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
         sendto_server(NULL, chptr, NOCAPS, NOCAPS,
                       type ? ":%s SJOIN %ld %s + :%c%s" : ":%s SJOIN %ld %s + :%s%s",
                       me.id, (long) chptr->channelts,
-                      chptr->chname, type ? sjmode : "", target_p->id);
+                      chptr->chname, type ? sjmode : '\0', target_p->id);
 
         sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
                              target_p->name, target_p->username,
@@ -376,10 +376,10 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
         chptr = get_or_create_channel(target_p, newch, NULL);
 	chptr->channelts = rb_current_time();
         add_user_to_channel(chptr, target_p, type);
-	if(ConfigChannel.automodes)
+	if(ConfigChannel.autochanmodes)
 	{
 		char * ch;
-		for(ch = ConfigChannel.automodes; *ch; *ch++)
+		for(ch = ConfigChannel.autochanmodes; *ch; *ch++)
 		{
 			chptr->mode.mode |= chmode_table[*ch].mode_type;
 		}
@@ -401,7 +401,7 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
 	sendto_server(NULL, chptr, CAP_TS6, NOCAPS,
 		      type ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
 		      me.id, (long) chptr->channelts,
-		      chptr->chname, modes, type ? sjmode : "", target_p->id);
+		      chptr->chname, modes, type ? sjmode : '\0', target_p->id);
 
     }
         target_p->localClient->last_join_time = rb_current_time();
