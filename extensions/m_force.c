@@ -169,7 +169,7 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
         sendto_server(NULL, chptr, NOCAPS, NOCAPS,
                       type ? ":%s SJOIN %ld %s + :%c%s" : ":%s SJOIN %ld %s + :%s%s",
                       me.id, (long) chptr->channelts,
-                      chptr->chname, type ? sjmode : '\0', target_p->id);
+                      chptr->chname, type ? sjmode : "", target_p->id);
 
         sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
                              target_p->name, target_p->username,
@@ -237,7 +237,7 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
 	sendto_server(NULL, chptr, CAP_TS6, NOCAPS,
 		      sjmode!=0 ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
 		      me.id, (long) chptr->channelts,
-		      chptr->chname, modes, sjmode!=0 ? sjmode : '\0', target_p->id);
+		      chptr->chname, modes, sjmode!=0 ? sjmode : "", target_p->id);
         target_p->localClient->last_join_time = rb_current_time();
         del_invite(chptr, target_p);
 
@@ -347,7 +347,7 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
         sendto_server(NULL, chptr, NOCAPS, NOCAPS,
                       type ? ":%s SJOIN %ld %s + :%c%s" : ":%s SJOIN %ld %s + :%s%s",
                       me.id, (long) chptr->channelts,
-                      chptr->chname, type ? sjmode : '\0', target_p->id);
+                      chptr->chname, type ? sjmode : "", target_p->id);
 
         sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
                              target_p->name, target_p->username,
@@ -400,7 +400,7 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
 	sendto_server(NULL, chptr, CAP_TS6, NOCAPS,
 		      type ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
 		      me.id, (long) chptr->channelts,
-		      chptr->chname, modes, type ? sjmode : '\0', target_p->id);
+		      chptr->chname, modes, type ? sjmode : "", target_p->id);
 
     }
         target_p->localClient->last_join_time = rb_current_time();
