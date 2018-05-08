@@ -141,6 +141,7 @@ struct Client
 	 * field should be considered read-only.
 	 */
 	char username[USERLEN + 1];	/* client's username */
+	char userusername[USERLEN + 1];	/* client's username */
 
 	/*
 	 * client->host contains the resolved name or ip address

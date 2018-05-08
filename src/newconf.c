@@ -338,6 +338,7 @@ static struct mode_table oper_table[] = {
 
 static struct mode_table auth_table[] = {
 	{"encrypted",		CONF_FLAGS_ENCRYPTED	},
+	{"use_user_ident",	CONF_FLAGS_USE_USER_IDENT },
 	{"spoof_notice",	CONF_FLAGS_SPOOF_NOTICE	},
 	{"exceed_limit",	CONF_FLAGS_NOLIMIT	},
 	{"dnsbl_exempt",	CONF_FLAGS_EXEMPTDNSBL	},

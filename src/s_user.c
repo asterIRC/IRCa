@@ -444,6 +444,21 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 		}
 	}
 
+	if (IsConfUseUserIdent(aconf)) {
+		// User is "use_user_ident". Always use ident from USER command.
+		const char *wp; int wi = 0;
+		wp = source_p->userusername;
+
+		while (*wp && wi < USERLEN)
+		{
+			if(*wp != '[')
+				source_p->username[wi++] = *wp;
+			wp++;
+		}
+
+		source_p->username[wi] = '\0';
+
+	}
 	if(IsNeedSasl(aconf) && !*user->suser)
 	{
 		ServerStats.is_ref++;

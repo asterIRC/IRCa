@@ -115,6 +115,7 @@ struct ConfItem
 #define CONF_FLAGS_EXEMPTDNSBL		0x04000000
 #define CONF_FLAGS_SPOOF_WEBCHAT	0x08000000	// will be a webirc client once we're done
 		// with her
+#define CONF_FLAGS_USE_USER_IDENT	0x10000000	// use user ident
 
 
 /* Macros for struct ConfItem */
@@ -136,6 +137,7 @@ struct ConfItem
 #define IsConfEncrypted(x)      ((x)->flags & CONF_FLAGS_ENCRYPTED)
 #define IsNeedSasl(x)		((x)->flags & CONF_FLAGS_NEED_SASL)
 #define IsConfExemptDNSBL(x)	((x)->flags & CONF_FLAGS_EXEMPTDNSBL)
+#define IsConfUseUserIdent(x)	((x)->flags & CONF_FLAGS_USE_USER_IDENT)
 #define IsConfSSLNeeded(x)	((x)->flags & CONF_FLAGS_NEED_SSL)
 
 /* flag definitions for opers now in client.h */
