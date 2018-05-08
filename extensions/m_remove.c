@@ -108,7 +108,7 @@ m_remove(struct Client *client_p, struct Client *source_p, int parc, const char 
 			return 0;
 		}
 
-		if(0==(get_channel_access(source_p, msptr, MODE_ADD) & (ONLY_CHANOPS|CHFL_HALFOP))))
+		if(0==(get_channel_access(source_p, msptr, MODE_ADD) & (ONLY_CHANOPS|CHFL_HALFOP)))
 		{
 			if(MyConnect(source_p))
 			{

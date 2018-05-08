@@ -197,7 +197,7 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 	}
 	else if (*new_privset == '%')
 	{
-		if (!IsAnyOper(target_p))
+		if (!IsOper(target_p))
 		{
 			return 0;
 		}
@@ -219,7 +219,7 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 
 	if (!dodeoper)
 	{
-		if (!IsAnyOper(target_p))
+		if (!IsOper(target_p))
 		{
 			sendto_one_notice(target_p, ":%s has granted you operator privileges.", source_p->name);
 			sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s is opering %s", get_oper_name(source_p), target_p->name);
