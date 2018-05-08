@@ -654,19 +654,17 @@ do_ip_cloak(const char *inbuf, char *outbuf)
 static void
 do_host_cloak_ipv6(const char *inbuf, char *outbuf)
 {
-    unsigned char *a, *b, *bp, *c, *d;
+    unsigned char *a, *b, *c, *d;
     char buf[512], *alpha, *beta, *gamma;
     struct in6_addr in_addr;
-    a = rb_malloc(256);
-    b = rb_malloc(256);
-    bp = rb_malloc(256);
-    c = rb_malloc(256);
-    alpha = rb_malloc(256);
-    beta = rb_malloc(256);
-    //betaprime = rb_malloc(256);
-    gamma = rb_malloc(256);
+    a = rb_malloc(512);
+    b = rb_malloc(512);
+    c = rb_malloc(512);
+    alpha = rb_malloc(512);
+    beta = rb_malloc(512);
+    gamma = rb_malloc(512);
     rb_inet_pton(AF_INET6, inbuf, &in_addr);
-    rb_snprintf(c, 255, "%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x",
+    rb_sprintf(c, "%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x",
 		in_addr.s6_addr[0],
 		in_addr.s6_addr[1],
 		in_addr.s6_addr[2],
@@ -678,13 +676,9 @@ do_host_cloak_ipv6(const char *inbuf, char *outbuf)
 		in_addr.s6_addr[8],
 		in_addr.s6_addr[9],
 		in_addr.s6_addr[10],
-		in_addr.s6_addr[11],
-		in_addr.s6_addr[12],
-		in_addr.s6_addr[13],
-		in_addr.s6_addr[14],
-		in_addr.s6_addr[15]
+		in_addr.s6_addr[11]
 	);
-    rb_snprintf(b, 255, "%2x%2x.%2x%2x.%2x%2x.%2x%2x",
+    rb_sprintf(b, "%2x%2x.%2x%2x.%2x%2x.%2x%2x",
 		in_addr.s6_addr[0],
 		in_addr.s6_addr[1],
 		in_addr.s6_addr[2],
@@ -694,33 +688,16 @@ do_host_cloak_ipv6(const char *inbuf, char *outbuf)
 		in_addr.s6_addr[6],
 		in_addr.s6_addr[7]
 	);
-    rb_snprintf(bp, 255, "%2x%2x.%2x%2x.%2x%2x",
-		in_addr.s6_addr[0],
-		in_addr.s6_addr[1],
-		in_addr.s6_addr[2],
-		in_addr.s6_addr[3],
-		in_addr.s6_addr[4],
-		in_addr.s6_addr[5]
-	);
-    rb_snprintf(a, 255, "%2x%2x.%2x%2x",
+    rb_sprintf(a, "%2x%2x.%2x%2x",
 		in_addr.s6_addr[0],
 		in_addr.s6_addr[1],
 		in_addr.s6_addr[2],
 		in_addr.s6_addr[3]
 	);
-    rb_snprintf(alpha, 255, "%s", c);
-    rb_snprintf(beta, 255, "%s.%s.%s", a, bp, b);
-    rb_snprintf(gamma, 255, "%s.%s", a, bp);
-    rb_snprintf(d, 255, "%s.%s", a);
-    rb_snprintf(outbuf, 255, "%s:%s:%s:%s:i6msk", do_ip_cloak_part(alpha), do_ip_cloak_part(beta), do_ip_cloak_part(gamma), do_ip_cloak_part(d));
-    rb_free(alpha);
-    rb_free(beta);
-    rb_free(gamma);
-    rb_free(d);
-    rb_free(a);
-    rb_free(b);
-    rb_free(bp);
-    rb_free(c);
+    rb_sprintf(alpha, "%s", inbuf);
+    rb_sprintf(beta, "%s.%s.%s", a, b, c);
+    rb_sprintf(gamma, "%s.%s", a, b);
+    rb_sprintf(outbuf, "%s:%s:%s:i6msk", do_ip_cloak_part(alpha), do_ip_cloak_part(beta), do_ip_cloak_part(gamma));
 }
 
 static void
@@ -760,27 +737,16 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
 
     output[0]=0;
 
-    char *oldhost, *oldhost2;
+    char *oldhost;
     j = 0;
-    oldhost = oldhost2 = rb_strdup(inbuf);
+    oldhost = rb_strdup(inbuf);
     int hostlen = 0;
-    int hostdots = 0;
-    int curhostdots = 0;
 
     for (i = 0; i < strlen(oldhost); i++) {
-        oldhost2++;
+        oldhost++;
         hostlen++;
         if (*oldhost == '.') {
-            hostdots++;
-        }
-    }
-
-    for (i = 0; i < strlen(oldhost); i++) {
-        if (((hostdots > 8) && (curhostdots < 3)) || ((hostdots > 4) && (hostdots < 9) && (curhostdots < 2)) || ((hostdots < 5) && (curhostdots < 1))) oldhost++;
-	else break;
-        hostlen++;
-        if (*oldhost == '.') {
-            curhostdots++;
+            break;
         }
     }
 
