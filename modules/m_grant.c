@@ -45,7 +45,12 @@ mapi_hfn_list_av1 whois_helpop_hfnlist[] = {
 
 DECLARE_MODULE_AV1(grant, NULL, NULL, grant_clist, NULL, NULL, "$Revision$");
 
-extern struct mode_table oper_table[];
+
+static struct mode_table oper_table[] = {
+	{"encrypted",		OPER_ENCRYPTED		},
+	{"need_ssl",		OPER_NEEDSSL		},
+	{NULL, 0}
+};
 
 static void on_oper_up (hook_data_client *hdata)
 {
