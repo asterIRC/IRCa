@@ -94,10 +94,10 @@ SRCS =                          \
   extb_ssl_fp.c			\
   extb_webircname.c		\
   extb_sctp.c			\
-  extb_sctp.c			\
-  umode_isabot.c			\
-  umode_comchanonlymsg.c			\
-  umode_sslonlymsg.c			\
+  whois_helpop.c		\
+  umode_isabot.c		\
+  umode_comchanonlymsg.c	\
+  umode_sslonlymsg.c		\
   example_module.c
 
 OBJS = ${SRCS:.c=.so}
