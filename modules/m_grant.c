@@ -170,7 +170,8 @@ static int me_svsnoop(struct Client *client_p, struct Client *source_p, int parc
 		if (SvsNoOp) do_grant(source_p, target_p, "%deoper");
 	}
 
-	sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s has quarantined %s.", source_p->name, me.name);
+	sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s has %sed %s (mask: %s) %s.", source_p->name,
+	       SvsNoOp ? "quarantin" : "releas", me.name, sname, SvsNoOp ? "" : " from quarantine");
 	return 0;
 }
 
