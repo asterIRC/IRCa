@@ -85,7 +85,7 @@ int user_modes[256] = {
 	0,			/* O */
 	0,			/* P */
 	UMODE_NOFORWARD,	/* Q */
-	0,			/* R */
+	UMODE_REGONLYMSG,	/* R */
 	UMODE_SERVICE,		/* S */
 	UMODE_SCTPCLIENT,	/* T */
 	0,			/* U */
