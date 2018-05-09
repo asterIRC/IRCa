@@ -1049,7 +1049,15 @@ chm_operbiz(struct Client *source_p, struct Channel *chptr,
 		return;
 	}
 
-	if(!IsOper(targ_p) && targ_p != source_p)
+	if(!IsOper(targ_p))
+	{
+		if(!(*errors & SM_ERR_NOOPS))
+		sendto_one(source_p, ":%s 482 %s %s :The target user is not a network operator", me.name, source_p->name, chptr->chname);
+		*errors |= SM_ERR_NOOPS;
+		return;
+	}
+
+	if(!IsOper(source_p))
 	{
 		if(!(*errors & SM_ERR_NOOPS))
 		sendto_one(source_p, ":%s 482 %s %s :You're not a network operator", me.name, source_p->name, chptr->chname);
