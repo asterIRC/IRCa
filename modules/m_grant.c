@@ -203,6 +203,7 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 			return 0;
 		}
 		new_privset = "default";
+		privset = privilegeset_get(new_privset);
 		dodeoper = 1;
 
 		sendto_one_notice(target_p, ":%s is deopering you and everyone else on your server", source_p->name);
