@@ -1091,6 +1091,12 @@ chm_operbiz(struct Client *source_p, struct Channel *chptr,
 
 		mstptr->flags &= ~CHFL_OPERBIZ;
 	}
+
+	if (mstptr->flags & CHFL_DELAY)
+	{ // He's delayed. Undelay him.
+		mstptr->flags &= ~CHFL_DELAY;
+		send_channel_join(0, chptr, targ_p);
+	}
 }
 
 void
@@ -1169,6 +1175,12 @@ chm_manager(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count++].arg = targ_p->name;
 
 		mstptr->flags &= ~CHFL_MANAGER;
+	}
+
+	if (mstptr->flags & CHFL_DELAY)
+	{ // He's delayed. Undelay him.
+		mstptr->flags &= ~CHFL_DELAY;
+		send_channel_join(0, chptr, targ_p);
 	}
 }
 
@@ -1250,6 +1262,12 @@ chm_superop(struct Client *source_p, struct Channel *chptr,
 
 		mstptr->flags &= ~CHFL_SUPEROP;
 	}
+
+	if (mstptr->flags & CHFL_DELAY)
+	{ // He's delayed. Undelay him.
+		mstptr->flags &= ~CHFL_DELAY;
+		send_channel_join(0, chptr, targ_p);
+	}
 }
 
 void
@@ -1328,6 +1346,12 @@ chm_op(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count++].arg = targ_p->name;
 
 		mstptr->flags &= ~CHFL_CHANOP;
+	}
+
+	if (mstptr->flags & CHFL_DELAY)
+	{ // He's delayed. Undelay him.
+		mstptr->flags &= ~CHFL_DELAY;
+		send_channel_join(0, chptr, targ_p);
 	}
 }
 
@@ -1412,6 +1436,12 @@ chm_halfop(struct Client *source_p, struct Channel *chptr,
 
 		mstptr->flags &= ~CHFL_HALFOP;
 	}
+
+	if (mstptr->flags & CHFL_DELAY)
+	{ // He's delayed. Undelay him.
+		mstptr->flags &= ~CHFL_DELAY;
+		send_channel_join(0, chptr, targ_p);
+	}
 }
 
 void
@@ -1477,6 +1507,12 @@ chm_voice(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count++].arg = targ_p->name;
 
 		mstptr->flags &= ~CHFL_VOICE;
+	}
+
+	if (mstptr->flags & CHFL_DELAY)
+	{ // He's delayed. Undelay him.
+		mstptr->flags &= ~CHFL_DELAY;
+		send_channel_join(0, chptr, targ_p);
 	}
 }
 
