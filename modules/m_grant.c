@@ -139,7 +139,7 @@ static int me_grant(struct Client *client_p, struct Client *source_p, int parc, 
 		return 0;
 	}
 
-	do_grant(source_p, target_p, parv[2]);
+	if (MyClient(target_p)) do_grant(source_p, target_p, parv[2]);
 
 	return 0;
 }
