@@ -215,19 +215,9 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
         chptr = get_or_create_channel(target_p, newch, NULL);
 	chptr->channelts = rb_current_time();
         add_user_to_channel(chptr, target_p, type);
-	if(ConfigChannel.autochanmodes)
-	{
-		char * ch;
-		for(ch = ConfigChannel.autochanmodes; *ch; *ch++)
-		{
-			chptr->mode.mode |= chmode_table[*ch].mode_type;
-		}
-	}
-	else
-	{
-		chptr->mode.mode |= MODE_TOPICLIMIT;
-		chptr->mode.mode |= MODE_NOPRIVMSGS;
-	}
+	chptr->mode.mode |= ChannelHasModes(newch) ?
+		ConfigChannel.autochanmodes :
+		ConfigChannel.modelessmodes;
 	const char *modes = channel_modes(chptr, &me);
 
         sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
@@ -378,19 +368,9 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
         chptr = get_or_create_channel(target_p, newch, NULL);
 	chptr->channelts = rb_current_time();
         add_user_to_channel(chptr, target_p, type);
-	if(ConfigChannel.autochanmodes)
-	{
-		char * ch;
-		for(ch = ConfigChannel.autochanmodes; *ch; *ch++)
-		{
-			chptr->mode.mode |= chmode_table[*ch].mode_type;
-		}
-	}
-	else
-	{
-		chptr->mode.mode |= MODE_TOPICLIMIT;
-		chptr->mode.mode |= MODE_NOPRIVMSGS;
-	}
+	chptr->mode.mode |= ChannelHasModes(newch) ?
+		ConfigChannel.autochanmodes :
+		ConfigChannel.modelessmodes;
 	const char *modes = channel_modes(chptr, &me);
 
         sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
