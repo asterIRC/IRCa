@@ -99,8 +99,11 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
         return 0;
     }
 
-    if((hunt_server(client_p, source_p, ":%s FORCEJOIN %s %s", 1, parc, parv)) != HUNTED_ISME)
+    if((hunt_server(client_p, source_p, ":%s FORCEJOIN %s %s", 1, parc, parv)) != HUNTED_ISME) {
+        sendto_one_notice(source_p, ":*** Hunting SVSJOIN for %s to %s",
+                         target_p->name, chptr->chname);
         return 0;
+    }
 
     /* if target_p is not existant, print message
      * to source_p and bail - scuzzy
