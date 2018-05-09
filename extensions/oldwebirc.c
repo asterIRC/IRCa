@@ -69,7 +69,7 @@ DECLARE_MODULE_AV1(webirc, NULL, NULL, webirc_clist, NULL, NULL, "$Revision: 207
  * mr_webirc - webirc message handler
  *      parv[1] = password
  *      parv[2] = fake username (we ignore this)
- *	parv[3] = fake hostname 
+ *	parv[3] = fake hostname
  *	parv[4] = fake ip
  */
 static int
@@ -77,21 +77,16 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 {
 	struct ConfItem *aconf;
 	const char *encr;
+	struct rb_sockaddr_storage addr;
 
-	if (!strchr(parv[4], '.') && !strchr(parv[4], ':'))
-	{
-		sendto_one(source_p, "NOTICE * :Invalid IP");
-		return 0;
-	}
-
-	aconf = find_address_conf(client_p->host, client_p->sockhost, 
+	aconf = find_address_conf(client_p->host, client_p->sockhost,
 				IsGotId(client_p) ? client_p->username : "webirc",
 				IsGotId(client_p) ? client_p->username : "webirc",
 				(struct sockaddr *) &client_p->localClient->ip,
 				client_p->localClient->ip.ss_family, NULL);
 	if (aconf == NULL || !(aconf->status & CONF_CLIENT))
 		return 0;
-	if (!IsConfDoSpoofWebchat(aconf))
+	if (!IsConfDoSpoofIp(aconf) || irccmp(aconf->info.name, "webirc."))
 	{
 		/* XXX */
 		sendto_one(source_p, "NOTICE * :Not a CGI:IRC auth block");
@@ -110,38 +105,29 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 	else
 		encr = parv[1];
 
-	if (strcmp(encr, aconf->passwd))
+	if (encr == NULL || strcmp(encr, aconf->passwd))
 	{
 		sendto_one(source_p, "NOTICE * :CGI:IRC password incorrect");
 		return 0;
 	}
 
+	if (rb_inet_pton_sock(parv[4], (struct sockaddr *)&addr) <= 0)
+	{
+		sendto_one(source_p, "NOTICE * :Invalid IP");
+		return 0;
+	}
 
-	rb_strlcpy(source_p->sockhost, parv[4], sizeof(source_p->sockhost));
+	source_p->localClient->ip = addr;
 
-	// Bizarre bug on umbrellix... XXX server should not refuse clients that use webirc
-	// XXX only occurs when the webirc is used from localhost... what the fuck
-	//rb_strlcpy(source_p->localClient->passwd, parv[1], sizeof(source_p->localClient->passwd));
-	// core bus
+	rb_inet_ntop_sock((struct sockaddr *)&source_p->localClient->ip, source_p->sockhost, sizeof(source_p->sockhost));
 
 	if(strlen(parv[3]) <= HOSTLEN)
 		rb_strlcpy(source_p->host, parv[3], sizeof(source_p->host));
 	else
 		rb_strlcpy(source_p->host, source_p->sockhost, sizeof(source_p->host));
 
-	// Bogus IPs. Treat hostNAME as sockhost.
-	if(!strcmp("127.0.0.1", parv[4]))
-		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
-
-	if(!strcmp("255.255.255.255", parv[4]))
-		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
-
-	rb_inet_pton_sock(parv[4], (struct sockaddr *)&source_p->localClient->ip);
-
-	user_metadata_add(source_p, "WEBIRCNAME", rb_strdup(aconf->webircname), 0);
-
 	/* Check dlines now, klines will be checked on registration */
-	if((aconf = find_dline((struct sockaddr *)&source_p->localClient->ip, 
+	if((aconf = find_dline((struct sockaddr *)&source_p->localClient->ip,
 			       source_p->localClient->ip.ss_family)))
 	{
 		if(!(aconf->status & CONF_EXEMPTDLINE))
