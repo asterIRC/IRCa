@@ -368,6 +368,22 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 					target_p->name, target_p->certfp);
 	}
 
+	if(target_p->umodes & UMODE_SCTPCLIENT)
+		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
+				   target_p->name, "is using an SCTP connection (rather than TCP, which is the default for IRC)");
+	if((md = user_metadata_find(target_p, "SWHOIS")))
+		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
+				   target_p->name, md->value);
+	if((source_p == target_p || !IsHidingCert(source_p)) &&
+			target_p->certfp != NULL)
+		sendto_one_numeric(source_p, RPL_WHOISCERTFP,
+				form_str(RPL_WHOISCERTFP),
+				target_p->name, target_p->certfp);
+
+	if((md = user_metadata_find(target_p, "WEBIRCNAME")))
+		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, "%s :is using the gateway %s",
+				   target_p->name, md->value);
+
 	if(MyClient(target_p))
 	{
 		if (IsDynSpoof(target_p) && (IsOper(source_p) || source_p == target_p))

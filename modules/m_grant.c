@@ -61,6 +61,7 @@ static int
 mo_grant(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
 	struct Client *target_p;
+	int floodmult = 65;
 
 	if(!HasPrivilege(source_p, "oper:netadmin"))
 	{
@@ -76,29 +77,34 @@ mo_grant(struct Client *client_p, struct Client *source_p, int parc, const char 
 		return 0;
 	}
 
-	if (parv[2][0] == '%')
+	if (parv[parc-1][0] == '%')
 	{
 		sendto_one(source_p, ":%s NOTICE %s :Reserved character for"
 			"IRCd internal purposes.", me.name, source_p->name);
 		return 0;
 	}
 
-	if (parv[2][0] == '!')
+	if (parv[parc-1][0] == '!')
 	{
 		sendto_one(source_p, ":%s NOTICE %s :Reserved character for"
 			"IRCd internal purposes.", me.name, source_p->name);
 		return 0;
+	}
+
+	if (parc >= 4) {
+		floodmult = (unsigned int)strtoul(parv[parc-2], NULL, 10);
+		if (floodmult > 64) floodmult = 65;
 	}
 
 	if (MyClient(target_p))
 	{
-		do_grant(source_p, target_p, parv[2]);
+		do_grant(source_p, target_p, parv[parc-1], floodmult > 64 ? -1 : floodmult);
 	}
 	else
 	{
-		sendto_one(target_p, ":%s ENCAP %s GRANT %s %s",
+		sendto_one(target_p, ":%s ENCAP %s GRANT %s %u :%s",
 				get_id(source_p, target_p), target_p->servptr->name,
-				get_id(target_p, target_p), parv[2]);
+				get_id(target_p, target_p), floodmult, parv[parc-1]);
 	}
 
 	return 0;
@@ -107,6 +113,7 @@ mo_grant(struct Client *client_p, struct Client *source_p, int parc, const char 
 static int me_grant(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
 	struct Client *target_p;
+	int floodmult = 65;
 
 	target_p = find_person(parv[1]);
 	if (target_p == NULL)
@@ -116,19 +123,24 @@ static int me_grant(struct Client *client_p, struct Client *source_p, int parc, 
 		return 0;
 	}
 
-	if (parv[2][0] == '%')
+	if (parv[parc-1][0] == '%')
 	{
 		sendto_one(source_p, ":%s NOTICE %s :Reserved character for"
 			"IRCd internal purposes.", me.name, source_p->name);
 		return 0;
 	}
 
-	if (parv[2][0] == '!')
+	if (parv[parc-1][0] == '!')
 	{
 		sendto_one(source_p, ":%s NOTICE %s :Reserved character for"
 			"IRCd internal purposes.", me.name, source_p->name);
 		return 0;
 	}
+
+	if (parc >= 4) {
+		floodmult = (int)strtoul(parv[parc-2], NULL, 10);
+	}
+	if (floodmult > 64) floodmult = -1;
 
 	if(!find_shared_conf(source_p->username, source_p->host,
 				source_p->servptr->name, SHARED_GRANT) &&
@@ -139,7 +151,7 @@ static int me_grant(struct Client *client_p, struct Client *source_p, int parc, 
 		return 0;
 	}
 
-	if (MyClient(target_p)) do_grant(source_p, target_p, parv[2]);
+	if (MyClient(target_p)) do_grant(source_p, target_p, parv[parc-1], floodmult);
 
 	return 0;
 }
@@ -175,13 +187,13 @@ static int me_svsnoop(struct Client *client_p, struct Client *source_p, int parc
 	return 0;
 }
 
-static int do_grant(struct Client *source_p, struct Client *target_p, const char *new_privset)
+static int do_grant(struct Client *source_p, struct Client *target_p, const char *new_privset, int fmult)
 {
 	int dooper = 0, dodeoper = 0;
 	struct PrivilegeSet *privset = 0;
 	char  privname[76];
 
-	rb_snprintf(privname, 75, "!%s", target_p->name);
+	rb_snprintf(privname, 75, "!%s", use_id(target_p));
 
 	if (!strcmp(new_privset, "deoper"))
 	{
@@ -257,6 +269,7 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 		oper.umodes = 0;
 		oper.snomask = 0;
 		oper.privset = privset;
+		oper.flood_multiplier = fmult;
 
 		oper_up(target_p, &oper);
 	}

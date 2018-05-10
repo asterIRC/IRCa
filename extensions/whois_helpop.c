@@ -50,7 +50,7 @@ check_umode_change(void *vdata)
 	{
 		if (!IsOperHelpop(source_p))
 		{
-			sendto_one_notice(source_p, ":[\x02Error\x02] You need the privilege oper:helpop for this usermode to work.");
+			sendto_one_notice(source_p, ":[\x02Error\x02] You need the privilege \x02oper:helpop\x02 for this usermode to work.");
 			source_p->umodes &= ~user_modes['h'];
 			return;
 		}

@@ -1459,6 +1459,7 @@ oper_up(struct Client *source_p, struct oper_conf *oper_p)
 		++Count.invisi;
 	if((old & UMODE_INVISIBLE) && !IsInvisible(source_p))
 		--Count.invisi;
+	if (oper_p->flood_multiplier != -1) source_p->localClient->flood_multiplier = oper_p->flood_multiplier;
 	send_umode_out(source_p, source_p, old);
 	sendto_one_numeric(source_p, RPL_SNOMASK, form_str(RPL_SNOMASK),
 		   construct_snobuf(source_p->snomask));
