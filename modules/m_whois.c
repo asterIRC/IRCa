@@ -243,6 +243,7 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 	int tlen;
 	hook_data_client hdata;
 	int extra_space = 0;
+	struct Metadata *md;
 #ifdef RB_IPV6
 	struct sockaddr_in ip4;
 #endif

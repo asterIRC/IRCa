@@ -544,7 +544,7 @@ struct ListClient
 #define IsNoForward(x)		((x)->umodes & UMODE_NOFORWARD)
 #define IsSetRegOnlyMsg(x)	((x)->umodes & UMODE_REGONLYMSG)
 #define IsHidingCert(x)		(\
-				(((x)->umodes & UMODE_CERTFPHIDE) && ConfigFileEntry.hide_certfp == 0) \
+				(((x)->umodes & UMODE_CERTFPHIDE) && ConfigFileEntry.hide_certfp == 0) || \
 				(!((x)->umodes & UMODE_CERTFPHIDE) && ConfigFileEntry.hide_certfp == 1) \
 				)
 
