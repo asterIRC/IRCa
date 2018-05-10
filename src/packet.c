@@ -47,6 +47,7 @@ parse_client_queued(struct Client *client_p)
 {
 	int dolen = 0;
 	int allow_read;
+	int floodmult = 16;
 
 	if(IsAnyDead(client_p))
 		return;
@@ -103,6 +104,7 @@ parse_client_queued(struct Client *client_p)
 	}
 	else if(IsClient(client_p))
 	{
+		floodmult = client_p->localClient->flood_multiplier != -1 ? client_p->localClient->flood_multiplier : 16;
 		if(IsFloodDone(client_p))
 			allow_read = ConfigFileEntry.client_flood_burst_max;
 		else
@@ -133,7 +135,8 @@ parse_client_queued(struct Client *client_p)
 			 * as sent_parsed will always hover around the allow_read limit
 			 * and no 'bursts' will be permitted.
 			 */
-			if(client_p->localClient->sent_parsed >= allow_read)
+			// But if their flood multiplier is 0, well, never break.
+			if(client_p->localClient->sent_parsed * floodmult >= allow_read * 16)
 				break;
 
 			dolen = rb_linebuf_get(&client_p->localClient->

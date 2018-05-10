@@ -117,6 +117,7 @@ struct oper_conf
 
 	int flags;
 	int umodes;
+	int flood_multiplier;
 
 	unsigned int snomask;
 

@@ -261,6 +261,7 @@ struct LocalUser
 	time_t last_knock;	/* time of last knock */
 	unsigned long random_ping;
 	struct AuthRequest *auth_request;
+	int flood_multiplier;	/* how much more leniency we are giving them than we normally would */
 
 	/* target change stuff */
 	/* targets we're aware of (fnv32(use_id(target_p))):
