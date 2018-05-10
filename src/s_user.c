@@ -1150,6 +1150,7 @@ user_mode(struct Client *client_p, struct Client *source_p, int parc, const char
 					rb_dlinkFindDestroy(source_p, &local_oper_list);
 					privilegeset_unref(source_p->localClient->privset);
 					source_p->localClient->privset = NULL;
+					user_metadata_delete(source_p, "PRIVS", 1);
 				}
 
 				rb_dlinkFindDestroy(source_p, &oper_list);
@@ -1437,6 +1438,10 @@ oper_up(struct Client *source_p, struct oper_conf *oper_p)
 	source_p->flags2 |= oper_p->flags;
 	source_p->localClient->opername = rb_strdup(oper_p->name);
 	source_p->localClient->privset = privilegeset_ref(oper_p->privset);
+
+	// broadcast privs over network
+	user_metadata_delete(source_p, "PRIVS", 1);
+	user_metadata_add(source_p, "PRIVS", oper_p->privset->privs, 1);
 
 	rb_dlinkAddAlloc(source_p, &local_oper_list);
 	rb_dlinkAddAlloc(source_p, &oper_list);

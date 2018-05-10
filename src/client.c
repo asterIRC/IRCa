@@ -2053,7 +2053,7 @@ user_metadata_add(struct Client *target, const char *name, const char *value, in
 	md->value = rb_strdup(value);
 
 	irc_dictionary_add(target->metadata, md->name, md);
-	
+
 	if(propegate && target->user != NULL)
 		sendto_match_servs(&me, "*", CAP_ENCAP, NOCAPS, "ENCAP * METADATA ADD %s %s :%s",
 				target->id, name, value);
