@@ -21,7 +21,7 @@ static int mo_grant(struct Client *client_p, struct Client *source_p, int parc, 
 static int me_grant(struct Client *client_p, struct Client *source_p, int parc, const char *parv[]);
 static int me_svsnoop(struct Client *client_p, struct Client *source_p, int parc, const char *parv[]);
 
-static int do_grant(struct Client *source_p, struct Client *target_p, const char *new_privset);
+static int do_grant(struct Client *source_p, struct Client *target_p, const char *new_privset, int fmult);
 
 struct Message grant_msgtab = {
   "GRANT", 0, 0, 0, MFLG_SLOW,
