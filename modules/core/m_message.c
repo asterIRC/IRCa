@@ -326,16 +326,26 @@ build_target_list(enum message_type msgtype, struct Client *client_p,
 
 		type = 0;
 		with_prefix = nick;
-		/*  allow %+@ if someone wants to do that */
-		for(;;)
-		{
-			if(*nick == '@')
-				type |= CHFL_CHANOP;
-			else if(*nick == '+')
-				type |= CHFL_CHANOP | CHFL_VOICE;
-			else
-				break;
+		/*  allow @qaohv. (and without a dot... unless the channel has a dot) if someone wants to do that */
+		if (*nick == '@') {
 			nick++;
+			for(;;)
+			{
+				if(*nick == 'o')
+					type |= CHFL_MANAGER | CHFL_SUPEROP | CHFL_CHANOP;
+				else if(*nick == 'q')
+					type |= CHFL_MANAGER;
+				else if(*nick == 'a')
+					type |= CHFL_MANAGER | CHFL_SUPEROP;
+				else if(*nick == 'h')
+					type |= CHFL_MANAGER | CHFL_SUPEROP | CHFL_CHANOP | CHFL_HALFOP;
+				else if(*nick == 'v')
+					type |= CHFL_MANAGER | CHFL_SUPEROP | CHFL_CHANOP | CHFL_HALFOP | CHFL_VOICE;
+				else
+					break;
+				nick++;
+			}
+			if (!IsChannelName(nick) || *nick == '.') nick++;
 		}
 
 		if(type != 0)
