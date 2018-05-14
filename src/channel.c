@@ -1499,20 +1499,22 @@ resv_chan_forcepart(const char *name, const char *reason, int temp_time)
 			if(IsExemptResv(target_p))
 				continue;
 
-			sendto_server(target_p, chptr, CAP_TS6, NOCAPS,
-			              ":%s PART %s", target_p->id, chptr->chname);
+			sendto_one(target_p, ":%s!%s@%s PART %s :RESV (%s)", target_p->name, target_p->username, target_p->host, chptr->chname, reason);
 
-			sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s PART %s :%s",
+			if (!is_delayed(msptr)) sendto_channel_local_butone(target_p, ALL_MEMBERS, chptr, ":%s!%s@%s PART %s :RESV (%s)",
 			                     target_p->name, target_p->username,
-			                     target_p->host, chptr->chname, target_p->name);
-
-			remove_user_from_channel(msptr);
+			                     target_p->host, chptr->chname, reason);
 
 			/* notify opers & user they were removed from the channel */
 			sendto_realops_snomask(SNO_GENERAL, L_ALL,
-			                     "Forced PART for %s!%s@%s from %s (%s)",
-			                     target_p->name, target_p->username,
-			                     target_p->host, name, reason);
+			                     "Forced PART for %s!%s@%s from %s (%s)%s",
+			                     target_p->name, target_p->username, 
+			                     target_p->host, name, reason, is_delayed(msptr) ? " (user was delayed entry; may not have been shown leaving)" : "");
+
+			sendto_server(target_p, chptr, CAP_TS6, NOCAPS,
+			              ":%s PART %s", target_p->id, chptr->chname);
+
+			remove_user_from_channel(msptr);
 
 			if(temp_time > 0)
 				sendto_one_notice(target_p, ":*** Channel %s is temporarily unavailable on this server.",

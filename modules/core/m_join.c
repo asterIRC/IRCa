@@ -508,6 +508,8 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 			chptr->join_delta = rb_current_time();
 		}
 		chptr->join_count++;
+		struct membership *msptr = find_channel_membership(chptr, source_p); // at this point a membership is guaranteed.
+		if (chptr->mode.mode & MODE_CHANDELAY) msptr->flags |= CHFL_DELAY; // user is delayed. this state is stored locally
 		send_channel_join(1, chptr, source_p);
 	}
 

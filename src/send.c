@@ -822,6 +822,8 @@ sendto_common_channels_local(struct Client *user, int cap, int negcap, const cha
 			   !NotCapable(target_p, negcap))
 				continue;
 
+			if(is_delayed(msptr)) continue;
+
 			target_p->serial = current_serial;
 			send_linebuf(target_p, &linebuf);
 		}
@@ -885,6 +887,8 @@ sendto_common_channels_local_butone(struct Client *user, int cap, int negcap, co
 			   !IsCapable(target_p, cap) ||
 			   !NotCapable(target_p, negcap))
 				continue;
+
+			if(is_delayed(msptr)) continue;
 
 			target_p->serial = current_serial;
 			send_linebuf(target_p, &linebuf);
