@@ -276,6 +276,7 @@ extern void free_channel_list(rb_dlink_list *);
 
 extern int check_channel_name(const char *name);
 extern int is_better_op(struct membership *,struct membership *);
+extern int is_at_least(struct membership *,int);
 
 extern void channel_member_names(struct Channel *chptr, struct Client *,
 				 int show_eon, int delay);

@@ -2252,3 +2252,28 @@ is_better_op(struct membership *source, struct membership *target)
 
         return 1;
 }
+
+int
+is_at_least(struct membership *source, int target)
+{
+        if(is_manager(source))
+                return 1;
+        if(is_superop(source) && (target & CHFL_MANAGER) != 0)
+                return 0;
+        if(is_superop(source) && (target & CHFL_SUPEROP) != 0)
+                return 1;
+        if(is_chanop(source) && (target & CHFL_MANAGER) != 0)
+                return 0;
+        if(is_chanop(source) && (target & CHFL_SUPEROP) != 0)
+                return 0;
+        if(is_halfop(source) && (target & ONLY_CHANOPS) != 0)
+                return 0;
+        if(is_halfop(source) && (target & CHFL_HALFOP) != 0 && (strchr(ConfigChannel.halfopscannotuse, 'h') != NULL))
+                return 0;
+        if(!is_any_op(source) && !is_halfop(source) && (target & CHFL_HALFOP) != 0)
+                return 0;
+        if(!is_voiced(source) && !is_any_op(source) && !is_halfop(source) && (target & CHFL_VOICE) != 0)
+                return 0;
+
+        return 1;
+}
