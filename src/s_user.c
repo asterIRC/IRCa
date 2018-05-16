@@ -1460,11 +1460,32 @@ oper_up(struct Client *source_p, struct oper_conf *oper_p)
 	sendto_realops_snomask(SNO_GENERAL, L_ALL,
 			     "%s (%s!%s@%s) is now an operator", oper_p->name, source_p->name,
 			     source_p->username, source_p->host);
+
+	if (oper_p->operstring) user_metadata_add(source_p, "OPERSTRING", oper_p->operstring, 1);
+	if (oper_p->swhois) user_metadata_add(source_p, "SWHOIS", oper_p->swhois, 1);
+	if (oper_p->vhost) {
+		if (!valid_hostname(oper_p->vhost))
+			sendto_realops_snomask(SNO_GENERAL, L_NETWIDE,
+				"Can someone nag the owner of %s to fix %s'%s oper block vhost so it's valid?",
+				me.name, oper_p->name, (oper_p->name[i] == 's' || oper_p->name[i] == 'S' || oper_p->name[i] == 'z' || oper_p->name[i] == 'Z') ? "" : "s"
+			);
+		else {
+			change_nick_user_host(source_p, source_p->name, source_p->username, oper_p->vhost, 0, "Opered up");
+			sendto_one_numeric(source_p, RPL_HOSTHIDDEN, "%s :is now your hidden host (set by %s)", source_p->host, source_p->servptr->name);
+			sendto_server(NULL, NULL, CAP_EUID | CAP_TS6, NOCAPS, ":%s CHGHOST %s :%s", use_id(&me), use_id(source_p), source_p->host);
+			sendto_server(NULL, NULL, CAP_TS6, CAP_EUID|NOCAPS, ":%s ENCAP * CHGHOST %s :%s", use_id(&me), use_id(source_p), source_p->host);
+			if (!IsDynSpoof(source_p)) SetDynSpoof(source_p);
+		}
+	}
+
 	if(!(old & UMODE_INVISIBLE) && IsInvisible(source_p))
 		++Count.invisi;
 	if((old & UMODE_INVISIBLE) && !IsInvisible(source_p))
 		--Count.invisi;
-	if (oper_p->flood_multiplier != -1) source_p->localClient->flood_multiplier = oper_p->flood_multiplier;
+	if (MyClient(source_p) && oper_p->flood_multiplier != -1 && oper_p->flood_multiplier < source_p->localClient->flood_multiplier) {
+		sendto_one_notice(source_p, ":*** Congratulations, your flood multiplier has decreased to %i", oper_p->flood_multiplier);
+	}
+	if (oper_p->flood_multiplier != -1 && oper_p->flood_multiplier < source_p->localClient->flood_multiplier) source_p->localClient->flood_multiplier = oper_p->flood_multiplier;
 	send_umode_out(source_p, source_p, old);
 	sendto_one_numeric(source_p, RPL_SNOMASK, form_str(RPL_SNOMASK),
 		   construct_snobuf(source_p->snomask));
