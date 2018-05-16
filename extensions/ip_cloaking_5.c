@@ -627,7 +627,7 @@ do_cloak_part(const char *part)
     }
     // part on secretsalt
     sha256_hash(inbuf, &hash, 32);
-    rb_snprintf(buf, sizeof(buf), "%.128X", hash);
+    rb_snprintf(buf, sizeof(buf), "%.64X", hash);
     return rb_strdup(buf);
 }
 
@@ -636,7 +636,7 @@ do_ip_cloak_part(const char *part)
 {
     char buf[33] = "";
     char *hash = do_cloak_part(part);
-    rb_snprintf(buf, sizeof(buf), "%.2X%.2X%.2X%.2X", hash + 2, hash + 4, hash + 6, hash + 8);
+    rb_snprintf(buf, sizeof(buf), "%c%c%c%c%c%c%c%c", *hash, *hash+1, *hash+2, *hash+3, *hash+4, *hash+5, *hash+6, *hash+7);
     return rb_strdup(buf);
 }
 
@@ -657,7 +657,7 @@ do_ip_cloak(const char *inbuf, char *outbuf)
     rb_sprintf(alpha, "%s", inbuf);
     rb_sprintf(beta, "%u.%u.%u", a, b, c);
     rb_sprintf(gamma, "%u.%u", a, b);
-    rb_sprintf(outbuf, "%s.%s.%s.i4msk", do_ip_cloak_part(alpha), do_ip_cloak_part(beta), do_ip_cloak_part(gamma));
+    rb_sprintf(outbuf, "%s.%s.%s:i4msk", do_ip_cloak_part(alpha), do_ip_cloak_part(beta), do_ip_cloak_part(gamma));
 }
 
 static void
@@ -761,7 +761,7 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
 
     for (i = 0; i < 31; i = i + 1) {
         if (i >= hostlen && i >= 9) break;
-        sprintf(buf, "%c%c", hash[i]);
+        sprintf(buf, "%c", *hash + i);
         strcat(output,buf);
     }
 
