@@ -714,7 +714,7 @@ msg_channel_flags(enum message_type msgtype, struct Client *client_p,
 
 	// send "modeletter#channel" on local
 	sendto_channel_local(type, chptr, !IsServer(source_p) ? ":%s!%s@%s %s %c%s :%s" : ":%s%s%s %s %c%s :%s",
-				source_p->name, !IsServer(source_p) ? source_p->username : ""
+				source_p->name, !IsServer(source_p) ? source_p->username : "",
 				!IsServer(source_p) ? source_p->host : "", cmdname[msgtype], c, chptr->chname,
 				text
 			     );
