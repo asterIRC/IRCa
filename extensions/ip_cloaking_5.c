@@ -628,6 +628,7 @@ do_cloak_part(const char *part)
     // part on secretsalt
     sha256_hash(inbuf, &hash, 32);
     rb_snprintf(buf, sizeof(buf), "%.64X", hash);
+    sendto_realops_snomask(SNO_GENERAL, L_ALL, "hash for part %s is %.128X", part, hash);
     return rb_strdup(buf);
 }
 
@@ -636,7 +637,7 @@ do_ip_cloak_part(const char *part)
 {
     char buf[33] = "";
     char *hash = do_cloak_part(part);
-    rb_snprintf(buf, sizeof(buf), "%c%c%c%c%c%c%c%c", *hash, *hash+1, *hash+2, *hash+3, *hash+4, *hash+5, *hash+6, *hash+7);
+    rb_snprintf(buf, sizeof(buf), "%c%c%c%c%c%c%c%c", *hash, *(hash+1), *(hash+2), *(hash+3), *(hash+4), *(hash+5), *(hash+6), *(hash+7));
     return rb_strdup(buf);
 }
 
@@ -761,7 +762,7 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
 
     for (i = 0; i < 31; i = i + 1) {
         if (i >= hostlen && i >= 9) break;
-        sprintf(buf, "%c", *hash + i);
+        sprintf(buf, "%c", hash[i]);
         strcat(output,buf);
     }
 
