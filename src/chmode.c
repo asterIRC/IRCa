@@ -837,8 +837,8 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 		/* non-ops cant see +eI lists.. */
 		/* note that this is still permitted if +e/+I are mlocked. */
 		if(
-		    (mode_type == CHFL_EXCEPTION && (alevel & (strchr(ConfigChannel.halfopscannotuse, 'e') != NULL) ? CHFL_CHANOP : CHFL_HALFOP)
-		 || (mode_type == CHFL_INVEX && (alevel & (strchr(ConfigChannel.halfopscannotuse, 'I') != NULL) ? CHFL_CHANOP : CHFL_HALFOP)
+		    (mode_type == CHFL_EXCEPTION && (alevel & (strchr(ConfigChannel.halfopscannotuse, 'e') != NULL) ? CHFL_CHANOP : CHFL_HALFOP))
+		 || (mode_type == CHFL_INVEX && (alevel & (strchr(ConfigChannel.halfopscannotuse, 'I') != NULL) ? CHFL_CHANOP : CHFL_HALFOP))
 		) {
 			if(!(*errors & SM_ERR_NOOPS))
 				sendto_one(source_p, form_str(ERR_CHANOPRIVSNEEDED),
