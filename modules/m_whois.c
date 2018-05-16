@@ -61,6 +61,7 @@ struct Message whois_msgtab = {
 int doing_whois_hook;
 int doing_whois_global_hook;
 int doing_whois_channel_visibility_hook;
+int doing_whois_oper_visibility_hook;
 int upper_doing_whois_hook;
 int upper_doing_whois_global_hook;
 
@@ -71,6 +72,7 @@ mapi_hlist_av1 whois_hlist[] = {
 	{ "upper_doing_whois",			&upper_doing_whois_hook },
 	{ "upper_doing_whois_global",		&upper_doing_whois_global_hook },
 	{ "doing_whois_channel_visibility",	&doing_whois_channel_visibility_hook },
+	{ "doing_whois_oper_visibility",	&doing_whois_oper_visibility_hook },
 	{ NULL, NULL }
 };
 
@@ -325,11 +327,19 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 
 	if(IsOper(target_p))
 	{
-		sendto_one_numeric(source_p, RPL_WHOISOPERATOR, form_str(RPL_WHOISOPERATOR),
-				   target_p->name,
-				   IsService(target_p) ? ConfigFileEntry.servicestring :
-				   (IsAdmin(target_p) ? GlobalSetOptions.adminstring :
-				    GlobalSetOptions.operstring));
+		hdata.approved = 0;
+		call_hook(doing_whois_oper_visibility_hook, &hdata);
+
+		if (!hdata.approved || IsOper(source_p)) {
+			if((md = user_metadata_find(target_p, "OPERSTRING")))
+				sendto_one_numeric(source_p, RPL_WHOISOPERATOR, "%s :%s",
+						   target_p->name, md->value);
+			else sendto_one_numeric(source_p, RPL_WHOISOPERATOR, form_str(RPL_WHOISOPERATOR),
+					   target_p->name,
+					   IsService(target_p) ? ConfigFileEntry.servicestring :
+					   (IsAdmin(target_p) ? GlobalSetOptions.adminstring :
+					    GlobalSetOptions.operstring));
+		}
 	}
 
 	if(MyClient(target_p) && !EmptyString(target_p->localClient->opername) && IsOper(target_p) && IsOper(source_p))
@@ -337,6 +347,15 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 		char obuf[512];
 		rb_snprintf(obuf, sizeof(obuf), "is opered as %s, privset %s",
 			    target_p->localClient->opername, target_p->localClient->privset->name);
+		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
+				   target_p->name, obuf);
+	}
+
+	if((md = user_metadata_find(target_p, "PRIVS")) && IsOper(target_p) && IsOper(source_p))
+	{
+		char obuf[512];
+		rb_snprintf(obuf, sizeof(obuf), "this oper has the following privileges: %s",
+			    md->value);
 		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
 				   target_p->name, obuf);
 	}
@@ -372,6 +391,7 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 	if(target_p->umodes & UMODE_SCTPCLIENT)
 		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
 				   target_p->name, "is using an SCTP connection (rather than TCP, which is the default for IRC)");
+
 	if((md = user_metadata_find(target_p, "SWHOIS")))
 		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, form_str(RPL_WHOISSPECIAL),
 				   target_p->name, md->value);

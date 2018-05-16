@@ -362,7 +362,7 @@ init_isupport(void)
 	add_isupport("MAXLIST", isupport_maxlist, NULL);
 	add_isupport("MODES", isupport_intptr, &maxmodes);
 	add_isupport("NETWORK", isupport_stringptr, &ServerInfo.network_name);
-	add_isupport("STATUSMSG", isupport_string, "qaohv");
+	add_isupport("STATUSMSG", isupport_string, "@");
 	add_isupport("PRIVILEGEMSG", isupport_string, "@,.,qaohv");
 	add_isupport("STD", isupport_string, "i-d,irca");
 	add_isupport("CALLERID", isupport_umode, "g");

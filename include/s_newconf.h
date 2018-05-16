@@ -114,6 +114,8 @@ struct oper_conf
 	char *host;
 	char *passwd;
 	char *certfp;
+	char *operstring;
+	char *vhost;
 
 	int flags;
 	int umodes;

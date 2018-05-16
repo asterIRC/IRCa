@@ -561,7 +561,7 @@ check_forward(struct Client *source_p, struct Channel *chptr,
 	if(MyClient(source_p) && !(targptr->mode.mode & MODE_FREETARGET))
 	{
 		if((msptr = find_channel_membership(targptr, source_p)) == NULL ||
-			get_channel_access(source_p, msptr, MODE_QUERY) != CHFL_CHANOP)
+			0 == (get_channel_access(source_p, msptr, MODE_QUERY) & (strchr(ConfigChannel.halfopscannotuse, 'f') != NULL) ? CHFL_CHANOP : CHFL_HALFOP))
 		{
 			sendto_one(source_p, form_str(ERR_CHANOPRIVSNEEDED),
 				   me.name, source_p->name, targptr->chname);
@@ -836,9 +836,10 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 
 		/* non-ops cant see +eI lists.. */
 		/* note that this is still permitted if +e/+I are mlocked. */
-		if(alevel != CHFL_CHANOP && mode_type != CHFL_BAN &&
-				mode_type != CHFL_QUIET)
-		{
+		if(
+		    (mode_type == CHFL_EXCEPTION && (alevel & (strchr(ConfigChannel.halfopscannotuse, 'e') != NULL) ? CHFL_CHANOP : CHFL_HALFOP)
+		 || (mode_type == CHFL_INVEX && (alevel & (strchr(ConfigChannel.halfopscannotuse, 'I') != NULL) ? CHFL_CHANOP : CHFL_HALFOP)
+		) {
 			if(!(*errors & SM_ERR_NOOPS))
 				sendto_one(source_p, form_str(ERR_CHANOPRIVSNEEDED),
 					   me.name, source_p->name, chptr->chname);
