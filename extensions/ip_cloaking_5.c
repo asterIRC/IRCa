@@ -322,7 +322,7 @@ static void sha256_hash(const char *inbuf, char *outbuf, int buflen) {
 	sha256_process_bytes(inbuf, strlen(inbuf), &ctx);
 	sha256_finish_ctx(&ctx, temp_result);
 
-	rb_strlcpy(outbuf, temp_result, buflen);
+	memcpy(outbuf, temp_result, buflen);
 }
 
 static char *sha256_crypt_r(const char *key, const char *salt, char *buffer, int buflen)
@@ -627,8 +627,8 @@ do_cloak_part(const char *part)
     }
     // part on secretsalt
     sha256_hash(part, hash, 32);
-    rb_snprintf(buf, sizeof(buf), "%hhX", hash);
-    sendto_realops_snomask(SNO_GENERAL, L_ALL, "hash for part %s is %hhX", part, hash);
+    rb_snprintf(buf, sizeof(buf), "%.128X", hash);
+    sendto_realops_snomask(SNO_GENERAL, L_ALL, "hash for part %s is %.128X", part, hash);
     return rb_strdup(buf);
 }
 
