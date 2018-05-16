@@ -671,7 +671,7 @@ msg_channel_flags(enum message_type msgtype, struct Client *client_p,
 	}
 	else if (flags & CHFL_SUPEROP)
 	{
-		type = CHFL_SUPEROP;
+		type = CHFL_SUPEROP|CHFL_MANAGER;
 		c = 'a';
 	}
 	else
