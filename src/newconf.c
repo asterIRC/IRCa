@@ -833,6 +833,14 @@ conf_set_oper_vhost(void *data)
 	yy_oper->vhost = rb_strdup((char *) data);
 }
 
+static void
+conf_set_oper_swhois(void *data)
+{
+	if (yy_oper->swhois)
+		rb_free(yy_oper->swhois);
+	yy_oper->swhois = rb_strdup((char *) data);
+}
+
 static int
 conf_begin_class(struct TopConf *tc)
 {
@@ -2533,6 +2541,9 @@ static struct ConfEntry conf_operator_table[] =
 	{ "snomask",    CF_QSTRING, conf_set_oper_snomask,      0, NULL },
 	{ "user",	CF_QSTRING, conf_set_oper_user,		0, NULL },
 	{ "password",	CF_QSTRING, conf_set_oper_password,	0, NULL },
+	{ "swhois",     CF_QSTRING, conf_set_oper_swhois,       0, NULL },
+	{ "operstring", CF_QSTRING, conf_set_oper_operstring,   0, NULL },
+	{ "vhost",      CF_QSTRING, conf_set_oper_vhost,        0, NULL },
 	{ "fingerprint",	CF_QSTRING, conf_set_oper_fingerprint,	0, NULL },
 	{ "flood_multiplier", CF_INT, conf_set_oper_floodmult, 0, NULL },
 	{ "\0",	0, NULL, 0, NULL }
