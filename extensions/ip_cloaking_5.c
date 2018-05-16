@@ -627,8 +627,8 @@ do_cloak_part(const char *part)
     }
     // part on secretsalt
     sha256_hash(part, hash, 32);
-    rb_snprintf(buf, sizeof(buf), "%.64hhX", hash);
-    sendto_realops_snomask(SNO_GENERAL, L_ALL, "hash for part %s is %.128hhX", part, hash);
+    rb_snprintf(buf, sizeof(buf), "%hhX", hash);
+    sendto_realops_snomask(SNO_GENERAL, L_ALL, "hash for part %s is %hhX", part, hash);
     return rb_strdup(buf);
 }
 
