@@ -616,18 +616,27 @@ DECLARE_MODULE_AV1(ip_cloaking, _modinit, _moddeinit, NULL, NULL,
                    ip_cloaking_hfnlist, "$Revision: 3526 $");
 
 static char *
-do_ip_cloak_part(const char *part)
+do_cloak_part(const char *part)
 {
     unsigned char hash[33] = "";
     char *inbuf = rb_strdup(part);
-    char buf[33] = "";
+    char buf[129] = "";
     int i;
     for (i = strlen(part)+1;i>0;i--) {
         inbuf[i-1] = part[i-1] ^ secretsalt[(i-1)%strlen(secretsalt)];
     }
     // part on secretsalt
     sha256_hash(inbuf, &hash, 32);
-    rb_snprintf(buf, sizeof(buf), "%.2X%.2X%.2X%.2X", hash[2], hash[4], hash[6], hash[8]);
+    rb_snprintf(buf, sizeof(buf), "%.128X", hash);
+    return rb_strdup(buf);
+}
+
+static char *
+do_ip_cloak_part(const char *part)
+{
+    char buf[33] = "";
+    char *hash = do_cloak_part(part);
+    rb_snprintf(buf, sizeof(buf), "%.2X%.2X%.2X%.2X", hash + 2, hash + 4, hash + 6, hash + 8);
     return rb_strdup(buf);
 }
 
@@ -733,7 +742,7 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
     char output[HOSTLEN+1];
     int i, j;
 
-    hash = do_ip_cloak_part(inbuf);
+    hash = do_cloak_part(inbuf);
 
     output[0]=0;
 
@@ -750,9 +759,9 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
         }
     }
 
-    for (i = 0; i < 61; i = i + 2) {
-        if (i >= hostlen && i >= 8) break;
-        sprintf(buf, "%.2X", hash[i]);
+    for (i = 0; i < 31; i = i + 1) {
+        if (i >= hostlen && i >= 9) break;
+        sprintf(buf, "%c%c", hash[i]);
         strcat(output,buf);
     }
 
