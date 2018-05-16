@@ -812,6 +812,11 @@ clean_nick(const char *nick, int loc_client)
 	if(*nick == '-' || *nick == '\0')
 		return 0;
 
+	if (!EmptyString(ConfigChannel.operprefix)) if (*nick == *(ConfigChannel.operprefix)) return 0;
+	if (!EmptyString(ConfigChannel.qprefix)) if (*nick == *(ConfigChannel.qprefix)) return 0;
+	if (!EmptyString(ConfigChannel.aprefix)) if (*nick == *(ConfigChannel.aprefix)) return 0;
+	if (!EmptyString(ConfigChannel.hprefix)) if (*nick == *(ConfigChannel.hprefix)) return 0;
+
 	if(loc_client && IsDigit(*nick))
 		return 0;
 
