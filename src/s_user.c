@@ -1406,8 +1406,10 @@ int
 oper_up(struct Client *source_p, struct oper_conf *oper_p)
 {
 	unsigned int old = source_p->umodes, oldsnomask = source_p->snomask;
+	int i;
 	hook_data_umode_changed hdata;
 
+	for (i = 0; i < strlen(oper_p->name); i++);
 	SetOper(source_p);
 
 	if(oper_p->umodes)
