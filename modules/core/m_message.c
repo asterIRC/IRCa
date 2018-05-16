@@ -253,7 +253,7 @@ static int
 build_target_list(enum message_type msgtype, struct Client *client_p,
 		  struct Client *source_p, const char *nicks_channels, const char *text)
 {
-	int type;
+	int type, aleast;
 	char *p, *nick, *target_list;
 	struct Channel *chptr = NULL;
 	struct Client *target_p;
@@ -657,12 +657,27 @@ msg_channel_flags(enum message_type msgtype, struct Client *client_p,
 	if(flags & CHFL_VOICE)
 	{
 		type = ONLY_CHANOPSVOICED;
-		c = '+';
+		c = 'v';
+	}
+	else if (flags & CHFL_HALFOP)
+	{
+		type = ONLY_CHANOPS|CHFL_HALFOP;
+		c = 'h';
+	}
+	else if (flags & CHFL_CHANOP)
+	{
+		type = ONLY_CHANOPS;
+		c = 'o';
+	}
+	else if (flags & CHFL_SUPEROP)
+	{
+		type = CHFL_SUPEROP;
+		c = 'a';
 	}
 	else
 	{
-		type = ONLY_CHANOPS;
-		c = '@';
+		type = CHFL_MANAGER;
+		c = 'q';
 	}
 
 	if(MyClient(source_p))
@@ -695,8 +710,18 @@ msg_channel_flags(enum message_type msgtype, struct Client *client_p,
 		return;
 	}
 
-	sendto_channel_flags(client_p, type, source_p, chptr, "%s %c%s :%s",
-			     cmdname[msgtype], c, chptr->chname, text);
+	// This is a conundrum.
+
+	// send "modeletter#channel" on local
+	sendto_channel_local(type, chptr, !IsServer(source_p) ? ":%s!%s@%s %s %c%s :%s" : ":%s%s%s %s %c%s :%s",
+				source_p->name, !IsServer(source_p) ? source_p->username : ""
+				!IsServer(source_p) ? source_p->host : "", cmdname[msgtype], c, chptr->chname,
+				text
+			     );
+
+	// send "@modeletter.#channel" remote
+	sendto_server(client_p, chptr, 0, 0, ":%s %s @%c.%s :%s",
+			     use_id(source_p), cmdname[msgtype], c, chptr->chname, text);
 }
 
 static void
