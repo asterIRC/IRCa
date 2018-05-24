@@ -1024,7 +1024,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
                 }
                 else if(fl & CHFL_MANAGER)
                 {
-                        *mbuf++ = 'y';
+                        *mbuf++ = 'q';
                         para[pargs++] = target_p->name;
                         if(fl & CHFL_SUPEROP)
                         {
