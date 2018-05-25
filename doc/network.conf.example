@@ -16,8 +16,35 @@ network {
   # recommended you do not make this differ between servers.
   # The default automodes forbid CTCPs and non-op topic changes.
   # The default modeless channel modes forbid outside messages only.
-  autochanmodes = "Cnst";
-  modelessmodes = "n"
+  autochanmodes = "CTnt";
+  modelessmodes = "n";
+
+  # splitcode.
+  # network::default_split_user_count default_split_server_count:
+  # these options may be used to define the minimum number of users
+  # and servers that may be on the network at once before the server
+  # enters net-split damage control mode.
+  # on most networks with services, this can safely be zero for both.
+  default_split_user_count = 0;
+  default_split_server_count = 0;
+
+  # network::no_create_on_split no_join_on_split:
+  # netsplit damage control.
+  # no_create_on_split: forbid our users from creating channels for the
+  # duration of the split.
+  # no_join_on_split: forbid our users from joining channels at all for
+  # the duration of the split.
+  # on most networks with or without services, these should both be "no".
+  no_create_on_split = no;
+  no_join_on_split = no;
+
+  # network::kick_on_split_riding:
+  # netsplit damage control 2: electric not-with-services-a-loo.
+  # if a channel on this server is burst from a different server
+  # with +i where we don't have +i or with a different +k to ours or
+  # with any +k if we don't have one, kick all users on our side.
+  # on most networks with services, this should usually be "no".
+  kick_on_split_riding = no;
 
   # network::modes_disabled_for_halfops:
   # It's recommended this is empty. Halfops cannot use any of these modes.
