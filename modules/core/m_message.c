@@ -863,7 +863,7 @@ msg_client(enum message_type msgtype,
 		}
 
 		/* XXX Controversial? allow opers always to send through a +g */
-		if(!IsServer(source_p) && (IsSetCallerId(target_p) ||
+		if(!IsServer(source_p) && !IsService(source_p) && (IsSetCallerId(target_p) ||
 					(IsSetRegOnlyMsg(target_p) && !source_p->user->suser[0])) ||
 		   (hdata.approved == UMODE_CALLERID))
 		{
