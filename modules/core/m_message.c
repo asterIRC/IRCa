@@ -889,23 +889,38 @@ msg_client(enum message_type msgtype,
 				/* check for accept, flag recipient incoming message */
 				if(msgtype != MESSAGE_TYPE_NOTICE)
 				{
-					sendto_one_numeric(source_p, ERR_TARGUMODEG,
-							   form_str(ERR_TARGUMODEG),
-							   target_p->name);
+					if (!(hdata.approved == UMODE_CALLERID))
+						sendto_one_numeric(source_p, ERR_TARGUMODEG,
+								   form_str(ERR_TARGUMODEG),
+								   target_p->name);
+					else	sendto_one_numeric(source_p, ERR_TARGUMODEG,
+								   vform_str(ERR_TARGUMODEG, 3),
+								   target_p->name, hdata.mode, hdata.umode);
 				}
 
 				if((target_p->localClient->last_caller_id_time +
 				    ConfigFileEntry.caller_id_wait) < rb_current_time())
 				{
-					if(msgtype != MESSAGE_TYPE_NOTICE)
-						sendto_one_numeric(source_p, RPL_TARGNOTIFY,
-								   form_str(RPL_TARGNOTIFY),
-								   target_p->name);
+					if(msgtype != MESSAGE_TYPE_NOTICE) {
+						if (!(hdata.approved == UMODE_CALLERID))
+							sendto_one_numeric(source_p, RPL_TARGNOTIFY,
+									   form_str(RPL_TARGNOTIFY),
+									   target_p->name);
+						else
+							sendto_one_numeric(source_p, RPL_TARGNOTIFY,
+									   vform_str(RPL_TARGNOTIFY, 3),
+									   target_p->name, hdata.targnotify);
+					}
 
 					add_reply_target(target_p, source_p);
-					sendto_one(target_p, form_str(RPL_UMODEGMSG),
-						   me.name, target_p->name, source_p->name,
-						   source_p->username, source_p->host);
+					if (!(hdata.approved == UMODE_CALLERID))
+						sendto_one(target_p, form_str(RPL_UMODEGMSG),
+							   me.name, target_p->name, source_p->name,
+							   source_p->username, source_p->host);
+					else
+						sendto_one(target_p, vform_str(RPL_UMODEGMSG, 3),
+							   me.name, target_p->name, source_p->name,
+							   source_p->username, source_p->host, hdata.mode, hdata.umode);
 
 					target_p->localClient->last_caller_id_time = rb_current_time();
 				}
