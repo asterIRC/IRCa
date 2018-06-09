@@ -895,7 +895,7 @@ msg_client(enum message_type msgtype,
 								   target_p->name);
 					else	sendto_one_numeric(source_p, ERR_TARGUMODEG,
 								   vform_str(ERR_TARGUMODEG, 3),
-								   target_p->name, hdata.mode, hdata.umode);
+								   target_p->name, hdata.whynot.mode, hdata.whynot.umode);
 				}
 
 				if((target_p->localClient->last_caller_id_time +
@@ -909,7 +909,7 @@ msg_client(enum message_type msgtype,
 						else
 							sendto_one_numeric(source_p, RPL_TARGNOTIFY,
 									   vform_str(RPL_TARGNOTIFY, 3),
-									   target_p->name, hdata.targnotify);
+									   target_p->name, hdata.whynot.targnotify);
 					}
 
 					add_reply_target(target_p, source_p);
@@ -920,7 +920,7 @@ msg_client(enum message_type msgtype,
 					else
 						sendto_one(target_p, vform_str(RPL_UMODEGMSG, 3),
 							   me.name, target_p->name, source_p->name,
-							   source_p->username, source_p->host, hdata.mode, hdata.umode);
+							   source_p->username, source_p->host, hdata.whynot.mode, hdata.whynot.umode);
 
 					target_p->localClient->last_caller_id_time = rb_current_time();
 				}
