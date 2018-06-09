@@ -24,8 +24,8 @@ static void h_isabot_high_whois(hook_data_client *);
 mapi_hfn_list_av1 whois_isabot_hfnlist[] = {
 	{ "doing_whois",	(hookfn) h_isabot_whois },
 	{ "doing_whois_global",	(hookfn) h_isabot_whois },
-	{ "doing_whois_top",	(hookfn) h_isabot_high_whois },
-	{ "doing_whois_top_global",	(hookfn) h_isabot_high_whois },
+	{ "upper_doing_whois",	(hookfn) h_isabot_high_whois },
+	{ "upper_doing_whois_global",	(hookfn) h_isabot_high_whois },
 	{ NULL, NULL }
 };
 
