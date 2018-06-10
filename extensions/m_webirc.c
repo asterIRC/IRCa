@@ -121,7 +121,7 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 
 	// Bizarre bug on umbrellix... XXX server should not refuse clients that use webirc
 	// XXX only occurs when the webirc is used from localhost... what the fuck
-	//rb_strlcpy(source_p->localClient->passwd, parv[1], sizeof(source_p->localClient->passwd));
+	rb_strlcpy(source_p->localClient->passwd, parv[1], sizeof(source_p->localClient->passwd));
 	// core bus
 
 	if(strlen(parv[3]) <= HOSTLEN)
