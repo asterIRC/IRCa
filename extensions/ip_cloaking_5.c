@@ -81,7 +81,7 @@ do_ip_cloak_part(const char *part)
     char buf[32] = "";
     int i;
     hash = HMAC(EVP_sha256(), secretsalt, strlen(secretsalt), (unsigned char*)part, strlen(part), NULL, NULL);
-    rb_snprintf(buf, sizeof(buf), "%.2X%.2X%.2X%.2X", hash[2], hash[4], hash[6], hash[8]);
+    rb_snprintf(buf, sizeof(buf), "%.2X%.2X%.2X%.2X%.2X", hash[2], hash[4], hash[6], hash[8], hash[10]);
     return rb_strdup(buf);
 }
 
@@ -211,8 +211,8 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
     }
 
     rb_strlcpy(outbuf,cloakprefix,HOSTLEN+1);
-    rb_strlcat(outbuf,output,HOSTLEN+1);
-    rb_strlcat(outbuf,oldhost,HOSTLEN+1);
+    rb_strlcat(outbuf,output,HOSTLEN-strlen(cloakprefix)+1);
+    rb_strlcat(outbuf,oldhost,HOSTLEN-strlen(outbuf)+1);
 }
 
 static void
@@ -290,7 +290,7 @@ check_new_user(void *vdata)
     source_p->localClient->mangledhost = rb_malloc(HOSTLEN + 1);
     if (!irccmp(source_p->orighost, source_p->sockhost))
         do_host_cloak_ip(source_p->orighost, source_p->localClient->mangledhost);
-    else
+    if (strlen(source_p->localClient->mangledhost) < 2)
         do_host_cloak_host(source_p->orighost, source_p->localClient->mangledhost);
     if (IsDynSpoof(source_p))
         source_p->umodes &= ~user_modes['x'];
