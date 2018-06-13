@@ -13,6 +13,8 @@
 #include "send.h"
 #include "s_conf.h"
 #include "s_newconf.h"
+#include "channel.h"
+#include "s_user.h"
 
 #define UMODE_SHOWONLYCOMCHANS_MODE_IN_USE  'I'
 
