@@ -20,7 +20,7 @@
 
 int _modinit(void) {
 	user_modes[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE] = find_umode_slot();
-	user_mode_names[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE] = "showonlycomchans";
+	user_mode_names[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE] = "chanhide";
 	construct_umodebuf();
 	return 0;
 }

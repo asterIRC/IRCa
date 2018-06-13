@@ -154,7 +154,7 @@ char *user_mode_names[256] = {
 	NULL,			/* C */
 	"deaf",			/* D */
 	NULL,			/* E */
-	NULL,			/* F */
+	"hidecert",		/* F */
 	NULL,			/* G */
 	NULL,			/* H */
 	NULL,			/* I */
