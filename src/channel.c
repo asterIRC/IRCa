@@ -261,18 +261,28 @@ find_channel_status(struct membership *mp, int combine)
 	// and now I only need to waste all but the first
 	// character for my return value if we aren't combining.
 	// -- reinhilde malik
-	rb_snprintf(buffer, sizeof(buffer), "%s%s%s%s%s%s",
-		is_operbiz(mp) ? Cc->operprefix : "",
-		is_manager(mp) ? Cc->qprefix : "",
-		is_superop(mp) ? Cc->aprefix : "",
-		is_chanop(mp) ? "@" : "",
-		is_halfop(mp) ? Cc->hprefix : "",
-		is_voiced(mp) ? "+" : ""
-	);
+	if (combine < 2)
+		rb_snprintf(buffer, sizeof(buffer), "%s%s%s%s%s%s",
+			is_operbiz(mp) ? Cc->operprefix : "",
+			is_manager(mp) ? Cc->qprefix : "",
+			is_superop(mp) ? Cc->aprefix : "",
+			is_chanop(mp) ? "@" : "",
+			is_halfop(mp) ? Cc->hprefix : "",
+			is_voiced(mp) ? "+" : ""
+		);
+	else
+		rb_snprintf(buffer, sizeof(buffer), "%s%s%s%s%s%s",
+			is_operbiz(mp) ? "y" : "",
+			is_manager(mp) ? "q" : "",
+			is_superop(mp) ? "a" : "",
+			is_chanop(mp) ? "o" : "",
+			is_halfop(mp) ? "h" : "",
+			is_voiced(mp) ? "v" : ""
+		);
 
 	// *p = '\0';
 
-	if (!combine) {
+	if (combine == 0) {
 		p = buffer + 1; // skip a char.
 		*p = 0; // identical to '\0' but less effort...
 	}
