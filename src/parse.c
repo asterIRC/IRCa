@@ -708,20 +708,16 @@ static void do_alias(struct alias_entry *aptr, struct Client *source_p, char *te
 		return;
 	}
 
+	char sendtex[511-18-14]; // needed...
+	snprintf(sendtex, 510-18-14, "%s%s%s", aptr->prefix, (strlen(aptr->prefix) == 0) ? "" : " ", text);
+
 	/* increment the hitcounter on this alias */
 	aptr->hits++;
 
-	if (strlen(aptr->prefix) == 0) {
-		sendto_one(target_p, ":%s PRIVMSG %s :%s",
-				get_id(source_p, target_p),
-				p != NULL ? aptr->target : get_id(target_p, target_p),
-				text);
-	} else {
-		sendto_one(target_p, ":%s PRIVMSG %s :%s %s",
-				get_id(source_p, target_p),
-				p != NULL ? aptr->target : get_id(target_p, target_p),
-				aptr->prefix, text);
-	}
+	sendto_one(target_p, ":%s PRIVMSG %s :%s",
+			get_id(source_p, target_p),
+			p != NULL ? aptr->target : get_id(target_p, target_p),
+			sendtex);
 }
 
 int
