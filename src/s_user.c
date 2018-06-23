@@ -55,6 +55,7 @@
 #include "substitution.h"
 #include "chmode.h"
 #include "s_assert.h"
+#include "irc_dictionary.h"
 
 static void report_and_set_user_flags(struct Client *, struct ConfItem *);
 void user_welcome(struct Client *source_p);
@@ -704,6 +705,8 @@ introduce_client(struct Client *client_p, struct Client *source_p, struct User *
 	char *p;
 	hook_data_umode_changed hdata;
 	hook_data_client hdata2;
+	struct Metadata *md;
+	struct DictionaryIter iter;
 
 	if(MyClient(source_p))
 		send_umode(source_p, source_p, 0, ubuf);
@@ -744,6 +747,12 @@ introduce_client(struct Client *client_p, struct Client *source_p, struct User *
 		sendto_server(client_p, NULL, CAP_TS6, NOCAPS,
 				":%s ENCAP * CERTFP :%s",
 				use_id(source_p), source_p->certfp);
+
+	DICTIONARY_FOREACH(md, &iter, target_p->metadata)
+	{
+		sendto_one(client_p, ":%s ENCAP * METADATA ADD %s %s :%s",
+		          use_id(&me), use_id(target_p), md->name, md->value);
+	}
 
 	if (IsDynSpoof(source_p))
 	{
