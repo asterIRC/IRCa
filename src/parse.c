@@ -711,10 +711,17 @@ static void do_alias(struct alias_entry *aptr, struct Client *source_p, char *te
 	/* increment the hitcounter on this alias */
 	aptr->hits++;
 
-	sendto_one(target_p, ":%s PRIVMSG %s :%s%s%s",
-			get_id(source_p, target_p),
-			p != NULL ? aptr->target : get_id(target_p, target_p),
-			aptr->prefix, (strlen(aptr->prefix) == 0) ? "" : " ", text);
+	if (strlen(aptr->prefix) == 0) {
+		sendto_one(target_p, ":%s PRIVMSG %s :%s",
+				get_id(source_p, target_p),
+				p != NULL ? aptr->target : get_id(target_p, target_p),
+				text);
+	} else {
+		sendto_one(target_p, ":%s PRIVMSG %s :%s %s",
+				get_id(source_p, target_p),
+				p != NULL ? aptr->target : get_id(target_p, target_p),
+				aptr->prefix, text);
+	}
 }
 
 int
