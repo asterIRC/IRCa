@@ -709,7 +709,7 @@ static void do_alias(struct alias_entry *aptr, struct Client *source_p, char *te
 	}
 
 	char sendtex[511-18-14]; // needed...
-	snprintf(sendtex, 510-18-14, "%s%s%s", aptr->prefix, (strlen(aptr->prefix) == 0) ? "" : " ", text);
+	snprintf(sendtex, 510-18-14, "%s%s%s", aptr->prefix, (strlen(aptr->prefix) == 0) ? "" : " ", (text == NULL || *text == '\0') ? "" : text);
 
 	/* increment the hitcounter on this alias */
 	aptr->hits++;
