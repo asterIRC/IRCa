@@ -748,10 +748,10 @@ introduce_client(struct Client *client_p, struct Client *source_p, struct User *
 				":%s ENCAP * CERTFP :%s",
 				use_id(source_p), source_p->certfp);
 
-	DICTIONARY_FOREACH(md, &iter, target_p->metadata)
+	DICTIONARY_FOREACH(md, &iter, source_p->metadata)
 	{
-		sendto_one(client_p, ":%s ENCAP * METADATA ADD %s %s :%s",
-		          use_id(&me), use_id(target_p), md->name, md->value);
+		sendto_server(client_p, NULL, CAP_ENCAP, NOCAPS, ":%s ENCAP * METADATA ADD %s %s :%s",
+		          use_id(&me), use_id(source_p), md->name, md->value);
 	}
 
 	if (IsDynSpoof(source_p))
