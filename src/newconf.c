@@ -57,8 +57,10 @@ static struct alias_entry *yy_alias = NULL;
 
 static char *yy_blacklist_host = NULL;
 static char *yy_blacklist_reason = NULL;
+static char *yy_blacklist_mark = NULL;
 static int yy_blacklist_ipv4 = 1;
 static int yy_blacklist_ipv6 = 0;
+static int yy_blacklist_reject = 1;
 static rb_dlink_list yy_blacklist_filters;
 
 static char *yy_privset_extends = NULL;
@@ -233,6 +235,13 @@ conf_set_serverinfo_network_name(void *data)
 
 	rb_free(ServerInfo.network_name);
 	ServerInfo.network_name = rb_strdup((char *) data);
+}
+
+static void
+conf_set_serverinfo_network_desc(void *data)
+{
+	rb_free(ServerInfo.network_desc);
+	ServerInfo.network_desc = rb_strdup((char *) data);
 }
 
 static void
@@ -2083,6 +2092,8 @@ conf_set_channel_autochanmodes(void *data)
 
 /* XXX for below */
 static void conf_set_blacklist_reason(void *data);
+static void conf_set_blacklist_mark(void *data);
+static void conf_set_blacklist_reject(void *data);
 
 static void
 conf_set_blacklist_host(void *data)
@@ -2117,6 +2128,8 @@ conf_set_blacklist_type(void *data)
 			yy_blacklist_ipv4 = 1;
 		else if (!strcasecmp(args->v.string, "ipv6"))
 			yy_blacklist_ipv6 = 1;
+		else if (!strcasecmp(args->v.string, "both"))
+			yy_blacklist_ipv6 = yy_blacklist_ipv4 = 1;
 		else
 			conf_report_error("blacklist::type has unknown address family %s",
 					  args->v.string);
@@ -2128,6 +2141,30 @@ conf_set_blacklist_type(void *data)
 		conf_report_error("blacklist::type has neither IPv4 nor IPv6 (defaulting to IPv4)");
 		yy_blacklist_ipv4 = 1;
 	}
+}
+
+static void
+conf_set_blacklist_reject(void *data)
+{
+	if (yy_blacklist_host && data)
+	{
+		yy_blacklist_reject = *(unsigned int*) data;
+	}
+}
+
+static void
+conf_set_blacklist_mark(void *data)
+{
+	if (yy_blacklist_host && data && strlen(data) < NICKLEN)
+	{
+		char *p;
+
+		if((p = strchr((char *) data, ' ')))
+			*p = '\0';
+
+		yy_blacklist_mark = rb_strdup(data);
+	} else
+		conf_report_error("blacklist::mark error has occured. Check that a host is set and that the mark is shorter than NICKLEN (%d) characters.", NICKLEN);
 }
 
 static void
@@ -2240,7 +2277,7 @@ conf_set_blacklist_reason(void *data)
 		}
 
 		new_blacklist(yy_blacklist_host, yy_blacklist_reason, yy_blacklist_ipv4, yy_blacklist_ipv6,
-				&yy_blacklist_filters);
+				&yy_blacklist_filters, yy_blacklist_reject, yy_blacklist_mark);
 	}
 
 cleanup_bl:
@@ -2260,9 +2297,11 @@ cleanup_bl:
 	rb_free(yy_blacklist_host);
 	rb_free(yy_blacklist_reason);
 	yy_blacklist_host = NULL;
+	yy_blacklist_mark = NULL;
 	yy_blacklist_reason = NULL;
 	yy_blacklist_ipv4 = 1;
 	yy_blacklist_ipv6 = 0;
+	yy_blacklist_reject = 1;
 }
 
 /* public functions */
@@ -2789,5 +2828,7 @@ newconf_init()
 	add_conf_item("blacklist", "host", CF_QSTRING, conf_set_blacklist_host);
 	add_conf_item("blacklist", "type", CF_STRING | CF_FLIST, conf_set_blacklist_type);
 	add_conf_item("blacklist", "matches", CF_QSTRING | CF_FLIST, conf_set_blacklist_matches);
-	add_conf_item("blacklist", "reject_reason", CF_QSTRING, conf_set_blacklist_reason);
+	add_conf_item("blacklist", "reject", CF_INT, conf_set_blacklist_reject);
+	add_conf_item("blacklist", "mark", CF_QSTRING, conf_set_blacklist_mark);
+	add_conf_item("blacklist", "reason", CF_QSTRING, conf_set_blacklist_reason);
 }

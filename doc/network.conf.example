@@ -182,4 +182,128 @@ network {
   channel_target_change = yes;
 };
 
+# blacklist: should also be roughly the same network-wide.
+/* These are the blacklist settings.
+ * You can have multiple combinations of host and rejection reasons.
+ * They are used in pairs of one host/rejection reason.
+ *
+ * These settings should be adequate for most networks.
+ *
+ * Word to the wise: Do not use blacklists like SPEWS for blocking IRC
+ * connections.
+ *
+ * As of charybdis 2.2, you can do some keyword substitution on the rejection
+ * reason. The available keyword substitutions are:
+ *
+ *   ${ip}           - the user's IP
+ *   ${host}         - the user's canonical hostname
+ *   ${dnsbl-host}   - the dnsbl hostname the lookup was done against
+ *   ${nick}         - the user's nickname
+ *   ${network-name} - the name of the network
+ *
+ * added in irca: this block will also now contain an example of using Tor
+ * Project's DNSEL to block users (or direct them to use your hidden service
+ * if you have one), using the IP 1.2.3.4 as an example. substitute your own
+ * ipv4 bindhost, and use all port numbers you listen on TCP using, rather than
+ * just 6667.
+ *
+ * also included is an example of using dronebl.
+ */
+blacklist {
+  host = "6667.4.3.2.1.ip-port.exitlist.torproject.org";
+  mark = "tordnsel";
+  reason = "${nick}, you're using Tor. On ${network-name}, Tor usage is only permitted via hidden service: nonexistent.onion.";
 
+  host = "dnsbl.dronebl.org";
+  mark = "dronebl";
+  matches "127.0.0.2", "127.0.0.3"; // etc
+  # Shamelessly ripped from http://www.dronebl.org/docs/howtouse
+  reason = "${nick}, you have a host listed in the DroneBL. For more information, visit http://dronebl.org/lookup?ip=${ip}";
+
+  host "dnsbl.dronebl.org";
+  mark "dronebl-t4";
+  type both; // ipv4? ipv6? both?
+  matches "127.0.0.4";
+  reject 0;
+  reason "${nick}, some channels may restrict your access because you have a Type 4 listing in DroneBL. For more information, visit http://dronebl.org/lookup?ip=${ip}";
+
+  host = "rbl.efnetrbl.org";
+  mark = "efnet-rbl";
+  reason = "${nick}, your IP (${ip}) is listed in EFnet's RBL. For assistance, see http://efnetrbl.org/?i=${ip}";
+};
+
+# The following eight blocks are also taken directly from the reference config
+# as they are autodidactic in nature (they describe server side services alii).
+# These should be the same on all servers, for obvious reasons.
+
+alias "NickServ" {
+  /* the name must go above */
+
+  /* target: the target nick (must be a network service) or
+   * user@server (cannot be this server, only opers can use
+   * user starting with "opers" reliably, interpreted on the target
+   * server only so you may need to use nick@server instead)
+   */
+  target = "NickServ";
+};
+
+alias "ChanServ" {
+  target = "ChanServ";
+};
+
+alias "OperServ" {
+  target = "OperServ";
+};
+
+alias "MemoServ" {
+  target = "MemoServ";
+};
+
+alias "NS" {
+  target = "NickServ";
+};
+
+alias "CS" {
+  target = "ChanServ";
+};
+
+alias "OS" {
+  target = "OperServ";
+};
+
+alias "MS" {
+  target = "MemoServ";
+};
+
+# if your network has hostserv, speak of it too.
+alias "HS" {
+  target = "HostServ";
+};
+
+alias "HostServ" {
+  target = "HostServ";
+};
+
+alias "CSHelp" {
+  target = "ChanServ";
+  # new in ircd-chatd and irca:
+  # alias[]::prefix: text to prepend to user's text sent to service or
+  # user@server. Here, /cshelp is an alias to /msg chanserv help (followed
+  # by a space for obvious reasons, i.e. /cshelp register = /cs help register
+  # not /cs helpregister)
+  # (reminds author, she needs to implement a pseudo-SQUERY command that
+  # only sends the message if the target is a service)
+  prefix = "HELP";
+};
+
+# service: should be the same network wide for obvious reasons.
+
+service {
+  # service::name[]: there may only be one service block.
+  # you may stack services server names, however.
+  # allows special privileges to the server.
+  # normal servers must not be afforded these privileges.
+  name = "services.invalid";
+  name = "tclserv.invalid";
+  name = "none.invalid";
+};
