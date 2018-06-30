@@ -63,7 +63,7 @@ struct BlacklistFilter {
 };
 
 /* public interfaces */
-struct Blacklist *new_blacklist(char *host, char *reject_reason, int ipv4, int ipv6, rb_dlink_list *filters);
+struct Blacklist *new_blacklist(char *host, char *reject_reason, int ipv4, int ipv6, rb_dlink_list *filters, int reject, char *mark);
 void lookup_blacklists(struct Client *client_p);
 void abort_blacklist_queries(struct Client *client_p);
 void unref_blacklist(struct Blacklist *blptr);

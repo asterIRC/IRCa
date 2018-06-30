@@ -254,7 +254,7 @@ static void initiate_blacklist_dnsquery(struct Blacklist *blptr, struct Client *
 }
 
 /* public interfaces */
-struct Blacklist *new_blacklist(char *name, char *reject_reason, int ipv4, int ipv6, rb_dlink_list *filters, int reject)
+struct Blacklist *new_blacklist(char *name, char *reject_reason, int ipv4, int ipv6, rb_dlink_list *filters, int reject, char *mark)
 {
 	struct Blacklist *blptr;
 
@@ -271,6 +271,7 @@ struct Blacklist *new_blacklist(char *name, char *reject_reason, int ipv4, int i
 		blptr->status &= ~CONF_ILLEGAL;
 
 	rb_strlcpy(blptr->host, name, IRCD_RES_HOSTLEN + 1);
+	rb_strlcpy(blptr->mark, mark, NICKLEN + 1);
 	rb_strlcpy(blptr->reject_reason, reject_reason, IRCD_BUFSIZE);
 	blptr->ipv4 = ipv4;
 	blptr->ipv6 = ipv6;
