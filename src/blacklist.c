@@ -76,13 +76,13 @@ static inline int blacklist_check_reply(struct BlacklistClient *blcptr, struct r
 			memcmp(&((struct sockaddr_in *)addr)->sin_addr, "\177", 1))
 		goto blwarn;
 
+	rb_inet_ntop_sock((struct sockaddr *)addr, ipaddr, sizeof(ipaddr));
+
 	blcptr->replycode = rb_strdup(ipaddr);
 
 	/* No filters and entry found - thus positive match */
 	if (!rb_dlink_list_length(&blptr->filters))
 		return 1;
-
-	rb_inet_ntop_sock((struct sockaddr *)addr, ipaddr, sizeof(ipaddr));
 
 	/* Below will prolly have to change too if the above changes */
 	if ((lastoctet = strrchr(ipaddr, '.')) == NULL || *(++lastoctet) == '\0')
