@@ -92,15 +92,17 @@ static inline int blacklist_check_reply(struct BlacklistClient *blcptr, struct r
 		char *cmpstr;
 
 		if (filter->type == BLACKLIST_FILTER_ALL)
-			blcptr->replycode = cmpstr = ipaddr;
+			cmpstr = ipaddr;
 		else if (filter->type == BLACKLIST_FILTER_LAST)
-			blcptr->replycode = cmpstr = lastoctet;
+			cmpstr = lastoctet;
 		else
 		{
 			sendto_realops_snomask(SNO_GENERAL, L_ALL,
 					"blacklist_check_reply(): Unknown filtertype (BUG!)");
 			continue;
 		}
+
+		blcptr->replycode = rb_strdup(cmpstr);
 
 		if (match(filter->filterstr, cmpstr) == 0)
 			/* Match! */
@@ -157,7 +159,7 @@ static void blacklist_dns_callback(void *vptr, struct DNSReply *reply)
 			blcptr->blacklist->host, blcptr->replycode,
 			blcptr->client_p->name,
 			blcptr->client_p->username, blcptr->client_p->host,
-			IsIPSpoof(source_p) ? "255.255.255.255" : blcptr->client_p->sockhost,
+			IsIPSpoof(blcptr->client_p) ? "255.255.255.255" : blcptr->client_p->sockhost,
 			blcptr->client_p->info);
 
 		rb_dlink_list varlist = { NULL, NULL, 0 };
