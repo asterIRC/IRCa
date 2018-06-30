@@ -86,6 +86,8 @@ static inline int blacklist_check_reply(struct BlacklistClient *blcptr, struct r
 	if ((lastoctet = strrchr(ipaddr, '.')) == NULL || *(++lastoctet) == '\0')
 		goto blwarn;
 
+	blcptr->replycode = rb_strdup(ipaddr);
+
 	RB_DLINK_FOREACH(ptr, blcptr->blacklist->filters.head)
 	{
 		struct BlacklistFilter *filter = ptr->data;
@@ -101,8 +103,6 @@ static inline int blacklist_check_reply(struct BlacklistClient *blcptr, struct r
 					"blacklist_check_reply(): Unknown filtertype (BUG!)");
 			continue;
 		}
-
-		blcptr->replycode = rb_strdup(cmpstr);
 
 		if (match(filter->filterstr, cmpstr) == 0)
 			/* Match! */
