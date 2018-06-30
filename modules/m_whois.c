@@ -402,7 +402,7 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 
 	struct DictionaryIter iter;
 
-	DICTIONARY_FOREACH(md, &iter, source_p->metadata)
+	DICTIONARY_FOREACH(md, &iter, target_p->metadata)
 	{
 		if (
 			md->name[0] == 'D' &&
@@ -412,7 +412,7 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 			md->name[4] == 'L' &&
 			md->name[5] == ':'
 		) {
-			sendto_one_numeric(source_p, RPL_WHOISSPECIAL, "%s :carries the DNSBL mark %s", md->name + 6);
+			sendto_one_numeric(source_p, RPL_WHOISSPECIAL, "%s :carries the DNSBL mark %s", target_p->name, md->name + 6);
 		}
 	}
 
