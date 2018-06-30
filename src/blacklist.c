@@ -170,8 +170,8 @@ static void blacklist_dns_callback(void *vptr, struct DNSReply *reply)
 		substitution_append_var(&varlist, "dnsbl-host", blcptr->blacklist->host);
 		substitution_append_var(&varlist, "network-name", ServerInfo.network_name);
 		substitution_append_var(&varlist, "listing-type", blcptr->replycode);
-		sendto_one(blcptr->client_p, ":%s NOTICE * :%s", me.name, substitution_parse(blcptr->blacklist->reason, &varlist));
-		user_metadata_add(blcptr->client_p, marknam, substitution_parse(blcptr->blacklist->reason, &varlist), 0);
+		sendto_one(blcptr->client_p, ":%s NOTICE * :%s", me.name, substitution_parse(blcptr->blacklist->reject_reason, &varlist));
+		user_metadata_add(blcptr->client_p, marknam, substitution_parse(blcptr->blacklist->reject_reason, &varlist), 0);
 		substitution_free(&varlist);
 		unref_blacklist(blcptr->blacklist);
 	}
