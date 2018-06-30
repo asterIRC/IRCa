@@ -400,6 +400,22 @@ single_whois(struct Client *source_p, struct Client *target_p, int operspy)
 		sendto_one_numeric(source_p, RPL_WHOISSPECIAL, "%s :is using the gateway %s",
 				   target_p->name, md->value);
 
+	struct DictionaryIter iter;
+
+	DICTIONARY_FOREACH(md, &iter, source_p->metadata)
+	{
+		if (
+			md->name[0] == 'D' &&
+			md->name[1] == 'N' &&
+			md->name[2] == 'S' &&
+			md->name[3] == 'B' &&
+			md->name[4] == 'L' &&
+			md->name[5] == ':'
+		) {
+			sendto_one_numeric(source_p, RPL_WHOISSPECIAL, "%s :carries the DNSBL mark %s", md->name + 6);
+		}
+	}
+
 	if(MyClient(target_p))
 	{
 		if (IsDynSpoof(target_p) && (IsOper(source_p) || source_p == target_p))
