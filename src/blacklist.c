@@ -148,7 +148,7 @@ static void blacklist_dns_callback(void *vptr, struct DNSReply *reply)
 	{
 		blcptr->client_p->preClient->dnsbl_listed = blcptr->blacklist;
 		/* reference to blacklist moves from blcptr to client_p->preClient... */
-	} else if (listed && blcptr->client_p->preClient->dnsbl_listed == NULL && blcptr->blacklist->reject == 0 && blcptr->blacklist->mark != NULL) {
+	} else if (listed && blcptr->client_p->preClient->dnsbl_listed == NULL && blcptr->blacklist->reject == 0 && 0 == strlen(blcptr->blacklist->mark)) {
 		char marknam [NICKLEN+7];
 		rb_snprintf(marknam, NICKLEN+7, "DNSBL:%s", blcptr->blacklist->mark);
 		sendto_one(blcptr->client_p, ":%s NOTICE * :Your IP address is listed in the DNSBL %s,"
