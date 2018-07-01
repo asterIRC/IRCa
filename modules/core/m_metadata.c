@@ -70,8 +70,6 @@ me_metadata(struct Client *client_p, struct Client *source_p, int parc, const ch
 			return 0;
 		}
 
-		if(!irccmp(parv[1], "LIST"))
-
 		if(!irccmp(parv[1], "ADD") && parv[4] != NULL)
 			user_metadata_add(target_p, parv[3], parv[4], 0);
 		if(!irccmp(parv[1], "DELETE") && parv[3] != NULL)

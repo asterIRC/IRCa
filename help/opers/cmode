@@ -250,7 +250,7 @@ XL = extban letter
 |    | gateway name. irca still does this, and in webirc client WHOIS  |
 |    | you will see "is using the <name> gateway" or similar.          |
 |----+-----------------------------------------------------------------|
-| $D | DNSBL mark match: matches users carrying a DNSBL stigma. Most   |
+| $d | DNSBL mark match: matches users carrying a DNSBL stigma. Most   |
 |    | channels will choose to use this for discrimination.            |
 |    | Takes a parameter - the name of a DNSBL stigma to match on.     |
 '----------------------------------------------------------------------'
