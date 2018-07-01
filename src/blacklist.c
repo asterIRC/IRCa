@@ -251,7 +251,7 @@ static void initiate_blacklist_dnsquery(struct Blacklist *blptr, struct Client *
 		return;
 
 	gethost_byname_type(buf, &blcptr->dns_query, T_A);
-	gethost_byname_type(buf, &blcptr->dns_query, T_TXT);
+//	gethost_byname_type(buf, &blcptr->dns_query, T_TXT);
 
 	rb_dlinkAdd(blcptr, &blcptr->node, &client_p->preClient->dnsbl_queries);
 	blptr->refcount++;
