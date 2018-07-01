@@ -30,7 +30,7 @@ static int m_metadata(struct Client *, struct Client *, int, const char **);
 
 struct Message metadata_msgtab = {
 	"METADATA", 0, 0, 0, MFLG_SLOW,
-	{mg_ignore, {m_metadata, 3}, mg_ignore, mg_ignore, {me_metadata, 3}, mg_ignore}
+	{mg_ignore, {m_metadata, 3}, mg_ignore, mg_ignore, {me_metadata, 3}, {m_metadata, 3}}
 };
 
 mapi_clist_av1 metadata_clist[] = {
@@ -102,7 +102,7 @@ m_metadata(struct Client *client_p, struct Client *source_p, int parc, const cha
 			}
 			sendto_one(source_p, ":%s NOTICE %s :end metadata of %s", me.name, source_p->name, target_p->name);
 		} else {
-			sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[3]);
+			sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[2]);
 			return 0;
 		}
 	}
