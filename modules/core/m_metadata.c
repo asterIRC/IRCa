@@ -95,10 +95,12 @@ m_metadata(struct Client *client_p, struct Client *source_p, int parc, const cha
 		if (IsOper(source_p) && !irccmp(parv[1], "LIST") && (target_p = find_named_person(parv[2])) != NULL) {
 			struct DictionaryIter iter;
 
+			sendto_one(source_p, ":%s NOTICE %s :begin metadata of %s", me.name, source_p->name, target_p->name);
 			DICTIONARY_FOREACH(md, &iter, target_p->metadata)
 			{
-				sendto_one(source_p, ":%s NOTICE * :metadatum of %s: %s [len %d] = \"%s\"", me.name, target_p->name, md->name, strlen(md->value)+1, md->value);
+				sendto_one(source_p, ":%s NOTICE %s :metadatum of %s: %s [len %d] = \"%s\"", me.name, source_p->name, target_p->name, md->name, strlen(md->value)+1, md->value);
 			}
+			sendto_one(source_p, ":%s NOTICE %s :end metadata of %s", me.name, source_p->name, target_p->name);
 		} else {
 			sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[3]);
 			return 0;
