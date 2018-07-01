@@ -14,7 +14,7 @@ DECLARE_MODULE_AV1(extb_dnsblmark, _modinit, _moddeinit, NULL, NULL, NULL, "$Rev
 static int
 _modinit(void)
 {
-	extban_table['D'] = eb_dnsblmark;
+	extban_table['d'] = eb_dnsblmark;
 
 	return 0;
 }
@@ -22,7 +22,7 @@ _modinit(void)
 static void
 _moddeinit(void)
 {
-	extban_table['D'] = NULL;
+	extban_table['d'] = NULL;
 }
 
 static int eb_dnsblmark(const char *data, struct Client *client_p,
