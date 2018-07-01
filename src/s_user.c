@@ -750,7 +750,7 @@ introduce_client(struct Client *client_p, struct Client *source_p, struct User *
 
 	DICTIONARY_FOREACH(md, &iter, source_p->metadata)
 	{
-		sendto_server(client_p, NULL, CAP_ENCAP, NOCAPS, ":%s ENCAP * METADATA ADD %s %s :%s",
+		sendto_server(client_p, NULL, CAP_TS6, NOCAPS, ":%s ENCAP * METADATA ADD %s %s :%s",
 		          use_id(&me), use_id(source_p), md->name, md->value);
 	}
 
