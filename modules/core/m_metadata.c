@@ -113,7 +113,6 @@ m_metadata(struct Client *client_p, struct Client *source_p, int parc, const cha
 				   form_str(ERR_NOSUCHCHANNEL), parv[2]);
 		return 0;
 	}
-	struct Metadata *md;
 	if(!irccmp(parv[1], "FIND") && parv[3] != NULL) {
 		md = channel_metadata_find(chptr, parv[3]);
 		if (md != NULL)
