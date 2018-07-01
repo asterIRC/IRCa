@@ -77,8 +77,24 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 {
 	struct ConfItem *aconf;
 	const char *encr;
+	char *ip;
 
 	if (!strchr(parv[4], '.') && !strchr(parv[4], ':'))
+	{
+		sendto_one(source_p, "NOTICE * :Invalid IP");
+		return 0;
+	}
+
+	ip = rb_strdup(parv[4]);
+	if (parv[4][0] == '[')
+	{
+		ip[strlen(parv[4])-1] = 0;
+		if (ip[1] == ':') {
+			ip[0] = '0';
+		}
+	}
+
+	if (EmptyString(ip))
 	{
 		sendto_one(source_p, "NOTICE * :Invalid IP");
 		return 0;
@@ -117,7 +133,7 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 	}
 
 
-	rb_strlcpy(source_p->sockhost, parv[4], sizeof(source_p->sockhost));
+	rb_strlcpy(source_p->sockhost, ip, sizeof(source_p->sockhost));
 
 	// Bizarre bug on umbrellix... XXX server should not refuse clients that use webirc
 	// XXX only occurs when the webirc is used from localhost... what the fuck
@@ -130,10 +146,13 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 		rb_strlcpy(source_p->host, source_p->sockhost, sizeof(source_p->host));
 
 	// Bogus IPs. Treat hostNAME as sockhost.
-	if(!strcmp("127.0.0.1", parv[4]))
+	if(!strcmp("127.0.0.1", ip))
 		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
 
-	if(!strcmp("255.255.255.255", parv[4]))
+	if(!strcmp("255.255.255.255", ip))
+		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
+
+	if(!strcmp("0::", ip))
 		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
 
 	rb_inet_pton_sock(parv[4], (struct sockaddr *)&source_p->localClient->ip);
@@ -152,5 +171,6 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 	}
 
 	sendto_one(source_p, "NOTICE * :CGI:IRC host/IP set to %s %s", parv[3], parv[4]);
+	rb_free(ip);
 	return 0;
 }

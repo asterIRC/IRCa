@@ -2295,6 +2295,7 @@ cleanup_bl:
 	}
 
 	rb_free(yy_blacklist_host);
+	rb_free(yy_blacklist_mark);
 	rb_free(yy_blacklist_reason);
 	yy_blacklist_host = NULL;
 	yy_blacklist_mark = NULL;
