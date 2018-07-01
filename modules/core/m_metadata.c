@@ -62,8 +62,13 @@ me_metadata(struct Client *client_p, struct Client *source_p, int parc, const ch
 		if((target_p = find_id(parv[2])) == NULL)
 			return 0;
 
-		if(!target_p->user)
+		if(!target_p->user) {
+			sendto_realops_snomask(SNO_REJ, L_NETWIDE,
+				"m_metadata called with no valid user for target! ID: %s command %s",
+				parv[2], parv[1]
+			);
 			return 0;
+		}
 
 		if(!irccmp(parv[1], "ADD") && parv[4] != NULL)
 			user_metadata_add(target_p, parv[3], parv[4], 0);
