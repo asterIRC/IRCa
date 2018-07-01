@@ -46,7 +46,7 @@
 rb_dlink_list blacklist_list = { NULL, NULL, 0 };
 
 /* private interfaces */
-static struct Blacklist *find_blacklist(char *name)
+static struct Blacklist *find_blacklist(char *name, int rejecting)
 {
 	rb_dlink_node *nptr;
 
@@ -54,7 +54,7 @@ static struct Blacklist *find_blacklist(char *name)
 	{
 		struct Blacklist *blptr = (struct Blacklist *) nptr->data;
 
-		if (!irccmp(blptr->host, name))
+		if (!irccmp(blptr->host, name) && blptr->reject == rejecting)
 			return blptr;
 	}
 
@@ -263,14 +263,11 @@ struct Blacklist *new_blacklist(char *name, char *reject_reason, int ipv4, int i
 	if (name == NULL || reject_reason == NULL)
 		return NULL;
 
-	blptr = find_blacklist(name);
-	if (blptr == NULL)
-	{
-		blptr = rb_malloc(sizeof(struct Blacklist));
-		rb_dlinkAddAlloc(blptr, &blacklist_list);
-	}
-	else
-		blptr->status &= ~CONF_ILLEGAL;
+	//blptr = find_blacklist(name, reject);
+	// people want multiple blacklist entries per host.
+	// don't bother dewasting the illegals.
+	blptr = rb_malloc(sizeof(struct Blacklist));
+	rb_dlinkAddAlloc(blptr, &blacklist_list);
 
 	rb_strlcpy(blptr->host, name, IRCD_RES_HOSTLEN + 1);
 	if (mark != NULL) rb_strlcpy(blptr->mark, mark, NICKLEN + 1);
