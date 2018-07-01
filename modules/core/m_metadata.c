@@ -70,6 +70,8 @@ me_metadata(struct Client *client_p, struct Client *source_p, int parc, const ch
 			return 0;
 		}
 
+		if(!irccmp(parv[1], "LIST"))
+
 		if(!irccmp(parv[1], "ADD") && parv[4] != NULL)
 			user_metadata_add(target_p, parv[3], parv[4], 0);
 		if(!irccmp(parv[1], "DELETE") && parv[3] != NULL)
@@ -86,10 +88,21 @@ me_metadata(struct Client *client_p, struct Client *source_p, int parc, const ch
 static int
 m_metadata(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
 {
+	struct Metadata *md;
 	if(!IsChannelName(parv[2]))
 	{
-		sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[3]);
-		return 0;
+		struct Client *target_p;
+		if (IsOper(source_p) && !irccmp(parv[1], "LIST") && (target_p = find_named_person(parv[2])) != NULL) {
+			struct DictionaryIter iter;
+
+			DICTIONARY_FOREACH(md, &iter, target_p->metadata)
+			{
+				sendto_one(source_p, ":%s NOTICE * :%s [len %d] = \"%s\"", me.name, target_p->name, md->name, strlen(md->value)+1, md->value);
+			}
+		} else {
+			sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[3]);
+			return 0;
+		}
 	}
 
 	struct Channel *chptr;
