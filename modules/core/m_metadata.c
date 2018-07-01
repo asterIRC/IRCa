@@ -97,7 +97,7 @@ m_metadata(struct Client *client_p, struct Client *source_p, int parc, const cha
 
 			DICTIONARY_FOREACH(md, &iter, target_p->metadata)
 			{
-				sendto_one(source_p, ":%s NOTICE * :%s [len %d] = \"%s\"", me.name, target_p->name, md->name, strlen(md->value)+1, md->value);
+				sendto_one(source_p, ":%s NOTICE * :metadatum of %s: %s [len %d] = \"%s\"", me.name, target_p->name, md->name, strlen(md->value)+1, md->value);
 			}
 		} else {
 			sendto_one_numeric(source_p, ERR_BADCHANNAME, form_str(ERR_BADCHANNAME), parv[3]);
