@@ -1219,6 +1219,8 @@ conf_set_auth_webircname(void *data)
 		return;
 	}
 
+	if(yy_aconf->webircname)
+		memset(yy_aconf->webircname, 0, strlen(yy_aconf->webircname));
 	rb_free(yy_aconf->webircname);
 	yy_aconf->webircname = rb_strdup(data);
 	yy_aconf->flags |= CONF_FLAGS_SPOOF_WEBCHAT;
