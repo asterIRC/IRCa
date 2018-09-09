@@ -86,9 +86,10 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 	}
 
 	ip = rb_strdup(parv[4]);
+	int ipl = strlen(ip);
 	if (parv[4][0] == '[')
 	{
-		ip[strlen(parv[4])-1] = 0;
+		ip[ipl-1] = 0;
 		if (ip[1] == ':') {
 			ip[0] = '0';
 		}
