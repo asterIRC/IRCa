@@ -85,6 +85,13 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 		return 0;
 	}
 
+	if (strchr(parv[4], ':') && parv[4][0] == '[')
+	{
+		sendto_one(source_p, "NOTICE * :Invalid IP, tell your webIRC developer to prefix a 0");
+		return 0;
+	}
+
+	ip = rb_strdup(parv[4]);
 	if (EmptyString(ip))
 	{
 		sendto_one(source_p, "NOTICE * :Invalid IP");
