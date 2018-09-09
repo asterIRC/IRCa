@@ -1112,6 +1112,9 @@ conf_end_auth(struct TopConf *tc)
 	{
 		yy_tmp = ptr->data;
 
+		if(yy_aconf->webircname)
+			yy_tmp->webircname = rb_strdup(yy_aconf->webircname);
+
 		if(yy_aconf->passwd)
 			yy_tmp->passwd = rb_strdup(yy_aconf->passwd);
 
