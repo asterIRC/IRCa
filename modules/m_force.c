@@ -55,12 +55,12 @@ static int me_svsjoin(struct Client *client_p, struct Client *source_p, int parc
 
 struct Message forcejoin_msgtab = {
     "FORCEJOIN", 0, 0, 0, MFLG_SLOW,
-    {mg_unreg, mg_not_oper, mg_ignore, mg_ignore, mg_ignore, {mo_forcejoin, 3}}
+    {mg_unreg, mg_not_oper, {mo_forcejoin, 3}, mg_ignore, mg_ignore, {mo_forcejoin, 3}}
 };
 
 struct Message svsjoin_msgtab = {
     "SVSJOIN", 0, 0, 0, MFLG_SLOW,
-    {mg_unreg, mg_not_oper, mg_ignore, mg_ignore, {me_svsjoin, 3}, {mo_forcejoin, 3}}
+    {mg_unreg, mg_not_oper, {mo_forcejoin, 3}, mg_ignore, {me_svsjoin, 3}, {mo_forcejoin, 3}}
 };
 
 mapi_clist_av1 force_clist[] = { &forcejoin_msgtab, &svsjoin_msgtab, NULL };
@@ -94,7 +94,8 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
     char *newch;
     hook_data_channel_activity hook_info;
 
-    if(!IsOperAdmin(source_p)) {
+    if(!IsOperAdmin(source_p) && MyClient(source_p)) {
+		// Do not check remote forcejoin; from a server we trust it always.
         sendto_one(source_p, form_str(ERR_NOPRIVS), me.name, source_p->name, "admin");
         return 0;
     }
