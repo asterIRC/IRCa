@@ -241,8 +241,8 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 		}
 		else
 		{
-			sendto_one_notice(target_p, ":%s is changing your privileges to: %s", source_p->name, privset->name);
-			sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s is changing the privileges of %s to: %s", get_oper_name(source_p), target_p->name, privset->name);
+			sendto_one_notice(target_p, ":%s is changing your privileges to: %s", source_p->name, new_privset);
+			sendto_realops_snomask(SNO_GENERAL, L_NETWIDE, "%s is changing the privileges of %s to: %s", get_oper_name(source_p), target_p->name, new_privset);
 		}
 
 		if (!IsOper(target_p))
@@ -267,6 +267,7 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 		struct oper_conf oper;
 		oper.name = "<granted>";
 		oper.umodes = 0;
+		oper.vhost = NULL;
 		oper.snomask = 0;
 		oper.privset = privset;
 		oper.flood_multiplier = fmult;
