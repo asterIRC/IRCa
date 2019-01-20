@@ -268,6 +268,8 @@ static int do_grant(struct Client *source_p, struct Client *target_p, const char
 		oper.name = "<granted>";
 		oper.umodes = 0;
 		oper.vhost = NULL;
+		oper.operstring = NULL;
+		oper.swhois = NULL;
 		oper.snomask = 0;
 		oper.privset = privset;
 		oper.flood_multiplier = fmult;
