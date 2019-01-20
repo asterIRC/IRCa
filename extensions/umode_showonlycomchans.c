@@ -51,6 +51,9 @@ conf_set_hidechannels_override_operonly(void *data)
 	hidechannels_override_isoperonly = * (unsigned int *) data;
 }
 
+#define IsChanInvisible(user) ((user)->umodes & user_modes[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE])
+#define IsChanInvisibleTo(to, user) ((user)->umodes & user_modes[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE] && !((to)->umodes & user_modes[UMODE_SHOWONLYCOMCHANS_EXCEPT_MODE_IN_USE]))
+
 static void
 h_uhuc_doing_whois_channel_visibility(hook_data_client *hdata)
 {
@@ -62,9 +65,6 @@ mapi_hfn_list_av1 hidechannels_hfnlist[] = {
 	{ "doing_whois_channel_visibility", (hookfn) h_uhuc_doing_whois_channel_visibility },
 	{ NULL, NULL }
 };
-
-#define IsChanInvisible(user) ((user)->umodes & user_modes[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE])
-#define IsChanInvisibleTo(to, user) ((user)->umodes & user_modes[UMODE_SHOWONLYCOMCHANS_MODE_IN_USE] && !((to)->umodes & user_modes[UMODE_SHOWONLYCOMCHANS_EXCEPT_MODE_IN_USE]))
 
 static void
 check_umode_change(void *vdata)
