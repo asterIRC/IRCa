@@ -175,6 +175,10 @@ privilegeset_mark_all_illegal(void)
 		if (!strcmp(set->name, "default"))
 			continue;
 
+		/* SVSOPER privsets are special and must remain available */
+		if (*set->name == '!' && find_person(set->name+1) != NULL)
+			continue;
+
 		set->status |= CONF_ILLEGAL;
 		rb_free(set->privs);
 		set->privs = rb_strdup("");
