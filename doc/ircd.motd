@@ -58,10 +58,10 @@ No other channel modes have changed.
       / /#\ \--------------------------------------------------.
      /  |#|  \  Failure to understand this section may result  |
     /   |#|   \  result in improper operation of this program. |
-   /    \#/    \  program. While most will not understand the  |
-  /      '      \  material laid hereout, it is vital that you |
- /      (#)      \  at least try to decide whether you want    |
- '---------------'  the capabilities described here.           |
+   /    \#/    \  While most will not understand the material  |
+  /      '      \  laid hereout, it is vital that you at least |
+ /      (#)      \   try to decide whether you want the capa-  |
+ '---------------'  -bilities described here.                  |
            '---------------------------------------------------'
 
 On those systems supporting SCTP (that is: most Linux other than
