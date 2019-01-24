@@ -271,7 +271,7 @@ struct Blacklist *new_blacklist(char *name, char *reject_reason, int ipv4, int i
 
 	rb_strlcpy(blptr->host, name, IRCD_RES_HOSTLEN + 1);
 	if (mark != NULL) rb_strlcpy(blptr->mark, mark, NICKLEN + 1);
-	else blptr->mark == NULL;
+	else blptr->mark = NULL;
 	rb_strlcpy(blptr->reject_reason, reject_reason, IRCD_BUFSIZE);
 	blptr->ipv4 = ipv4;
 	blptr->ipv6 = ipv6;
