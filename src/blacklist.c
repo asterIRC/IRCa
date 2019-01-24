@@ -103,8 +103,6 @@ static inline int blacklist_check_reply(struct BlacklistClient *blcptr, struct r
 					"blacklist_check_reply(): Unknown filtertype (BUG!)");
 			continue;
 		}
-		sendto_realops_snomask(SNO_GENERAL, L_ALL,
-				"blacklist_check_reply(): for %s, %s =? %s (response %s)", get_client_name(blcptr->client_p, HIDE_IP), filter->filterstr, cmpstr, ipaddr);
 
 		if (!irccmp(filter->filterstr, cmpstr))
 			/* Match! */
@@ -133,8 +131,8 @@ static void blacklist_dns_callback(void *vptr, struct DNSReply *reply)
 
 	if (blcptr->client_p->preClient == NULL)
 	{
-		sendto_realops_snomask(SNO_GENERAL, L_ALL,
-				"blacklist_dns_callback(): blcptr->client_p->preClient (%s) is NULL", get_client_name(blcptr->client_p, HIDE_IP));
+//		sendto_realops_snomask(SNO_GENERAL, L_ALL,
+//				"blacklist_dns_callback(): blcptr->client_p->preClient (%s) is NULL", get_client_name(blcptr->client_p, HIDE_IP));
 		rb_free(blcptr);
 		return;
 	}
