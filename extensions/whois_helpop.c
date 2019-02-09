@@ -100,8 +100,8 @@ _modinit(void)
 	user_mode_names['h'] = "helpop";
 
 	/* add the usermode to the available slot */
-	add_conf_item("general", "helpopstring", CF_QSTRING, conf_set_helpopstring);
-	add_conf_item("general", "helpop_unreal_loc", CF_YESNO, conf_set_helpoploc);
+	add_conf_item("network", "helpopstring", CF_QSTRING, conf_set_helpopstring);
+	add_conf_item("network", "helpop_unreal_loc", CF_YESNO, conf_set_helpoploc);
 	construct_umodebuf();
 
 	return 0;
@@ -114,8 +114,8 @@ _moddeinit(void)
 	user_mode_names['h'] = 0;
 
 	/* disable the umode and remove it from the available list */
-	remove_conf_item("general", "helpopstring");
-	remove_conf_item("general", "helpop_unreal_loc");
+	remove_conf_item("network", "helpopstring");
+	remove_conf_item("network", "helpop_unreal_loc");
 	construct_umodebuf();
 }
 mapi_hfn_list_av1 whois_helpop_hfnlist[] = {

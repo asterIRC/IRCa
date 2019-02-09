@@ -299,6 +299,10 @@ network {
   # limiting how many channels users may message in one go.
   # IRCops and users of privilege in the messaged channels are exempt.
   channel_target_change = yes;
+
+  helpopstring = "is available for help.";
+  helpop_unreal_loc = yes;
+  
 };
 
 # blacklist: should also be roughly the same network-wide.
