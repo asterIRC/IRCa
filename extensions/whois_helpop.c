@@ -122,8 +122,8 @@ mapi_hfn_list_av1 whois_helpop_hfnlist[] = {
 	{ "umode_changed", (hookfn) check_umode_change },
 	{ "doing_whois",	(hookfn) h_helpop_whois },
 	{ "doing_whois_global",	(hookfn) h_helpop_whois },
-	{ "doing_whois_top",	(hookfn) h_helpop_high_whois },
-	{ "doing_whois_top_global",	(hookfn) h_helpop_high_whois },
+	{ "upper_doing_whois",	(hookfn) h_helpop_high_whois },
+	{ "upper_doing_whois_global",	(hookfn) h_helpop_high_whois },
 	{ NULL, NULL }
 };
 
