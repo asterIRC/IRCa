@@ -181,7 +181,7 @@ inetport(struct Listener *listener)
 	 * At first, open a new socket
 	 */
 
-	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, ListenerIsSCTP(listener) ? IPPROTO_SCTP : IPPROTO_TCP, "Listener socket");
+	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, IPPROTO_TCP, "Listener socket");
 
 #ifdef RB_IPV6
 	if(listener->addr.ss_family == AF_INET6)
@@ -286,6 +286,12 @@ inetport_sctp(struct Listener *listener)
 	 * At first, open a new socket
 	 */
 
+#ifndef IPPROTO_SCTP
+	sendto_realops_snomask(SNO_GENERAL, L_ALL,
+			"SCTP is NOT supported! Please delete the sctpport and sctpsslport lines from your config file. This is not an error; the IRCd will continue to function.");
+	return 0;
+#else
+
 	F = rb_socket(GET_SS_FAMILY(&listener->addr), SOCK_STREAM, IPPROTO_SCTP, "Listener socket");
 
 #ifdef RB_IPV6
@@ -378,6 +384,7 @@ inetport_sctp(struct Listener *listener)
 
 	rb_accept_tcp(listener->F, accept_precallback, accept_callback, listener);
 	return 1;
+#endif
 }
 
 static struct Listener *
@@ -520,10 +527,16 @@ add_listener(int port, const char *vhost_ip, int family, int ssl, int defer_acce
 	listener->defer_accept = defer_accept;
 
 	if(sctp) {
+#ifdef IPPROTO_SCTP
 		if(inetport_sctp(listener))
 			listener->active = 1;
 		else
 			close_listener(listener);
+#else
+		sendto_realops_snomask(SNO_GENERAL, L_ALL,
+				"SCTP is not supported on the system on which this IRCd is running. Please remove the sctpport/sctpsslport declaration for %d from your configuration file. This is not an error; the IRCd will continue to function correctly without SCTP support.",
+				get_listener_port(listener));
+#endif
 	} else {
 		if(inetport(listener))
 			listener->active = 1;
@@ -628,6 +641,7 @@ add_connection(struct Listener *listener, rb_fde_t *F, struct sockaddr *sai, str
 	}
 
 	if (!!(listener->sctp)) SetSCTP(new_client);
+	// wake up stupid girl
 
 	new_client->localClient->listener = listener;
 
