@@ -197,7 +197,11 @@ m_remove(struct Client *client_p, struct Client *source_p, int parc, const char 
 		 * - Personally, flame and I believe that server kicks shouldn't
 		 *   be sent anyways.  Just waiting for some oper to abuse it...
 		 */
-		sendto_channel_local(ALL_MEMBERS, chptr,
+		if (!is_delayed(who)) sendto_channel_local(ALL_MEMBERS, chptr,
+				     ":%s!%s@%s PART %s :requested by %s (%s)",
+				     who->name, who->username,
+				     who->host, name, source_p->name, comment);
+		else sendto_one(who,
 				     ":%s!%s@%s PART %s :requested by %s (%s)",
 				     who->name, who->username,
 				     who->host, name, source_p->name, comment);
