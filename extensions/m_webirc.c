@@ -54,6 +54,7 @@
 #include "hash.h"
 #include "s_conf.h"
 #include "reject.h"
+#include "blacklist.h" // DNSBL checking; abort and restart once authenticated
 
 static int mr_webirc(struct Client *, struct Client *, int, const char **);
 
@@ -78,6 +79,7 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 	struct ConfItem *aconf;
 	const char *encr;
 	char *ip;
+	int isip = 1;
 
 	if (!strchr(parv[4], '.') && !strchr(parv[4], ':'))
 	{
@@ -144,21 +146,17 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 		rb_strlcpy(source_p->host, source_p->sockhost, sizeof(source_p->host));
 
 	// Bogus IPs. Treat hostNAME as sockhost.
-	if(!strcmp("127.0.0.1", ip))
+	if(!strcmp("127.0.0.1", ip) || !strcmp("255.255.255.255", ip) || !strcmp("0::", ip)) {
+		isip = 0;
 		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
+	}
 
-	if(!strcmp("255.255.255.255", ip))
-		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
-
-	if(!strcmp("0::", ip))
-		rb_strlcpy(source_p->sockhost, source_p->host, sizeof(source_p->sockhost));
-
-	rb_inet_pton_sock(parv[4], (struct sockaddr *)&source_p->localClient->ip);
+	memcpy((struct sockaddr *)&source_p->localClient->sockip, (struct sockaddr *)&source_p->localClient->ip, sizeof(source_p->localClient->sockip));
 
 	user_metadata_add(source_p, "WEBIRCNAME", rb_strdup(aconf->webircname), 0);
 
 	/* Check dlines now, klines will be checked on registration */
-	if((aconf = find_dline((struct sockaddr *)&source_p->localClient->ip, 
+	if((aconf = find_dline((struct sockaddr *)&source_p->localClient->ip,
 			       source_p->localClient->ip.ss_family)))
 	{
 		if(!(aconf->status & CONF_EXEMPTDLINE))
@@ -169,6 +167,12 @@ mr_webirc(struct Client *client_p, struct Client *source_p, int parc, const char
 	}
 
 	sendto_one(source_p, ":%s NOTICE * :CGI:IRC host/IP set to %s %s", me.name, parv[3], parv[4]);
+	if (isip) {
+		rb_inet_pton_sock(ip, (struct sockaddr *)&source_p->localClient->ip);
+		abort_blacklist_queries(source_p);
+		lookup_blacklists(source_p); // lookup blacklists, but only if this is even a real IP
+	}
+
 	rb_free(ip);
 	return 0;
 }
