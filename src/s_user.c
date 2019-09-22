@@ -321,8 +321,6 @@ register_local_user(struct Client *client_p, struct Client *source_p)
 	s_assert(NULL != source_p);
 	s_assert(MyConnect(source_p));
 
-	lookup_blacklists(source_p);
-
 	if(source_p == NULL)
 		return -1;
 
