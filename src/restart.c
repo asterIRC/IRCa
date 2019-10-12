@@ -27,6 +27,8 @@
 #include "stdinc.h"
 #include "restart.h"
 #include "ircd.h"
+#include "sslproc.h"
+#include "bandbi.h"
 #include "send.h"
 #include "logger.h"
 #include "s_conf.h"
@@ -74,6 +76,9 @@ server_reboot(void)
 		close(i);
 
 	unlink(pidFileName);
+	ssl_killall();
+	bandb_killall();
+
 	execv(SPATH, (void *)myargv);
 
 	/* use this if execv of SPATH fails */

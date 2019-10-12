@@ -56,6 +56,7 @@ rb_dlink_list bandb_pending;
 
 static rb_helper *bandb_helper;
 static int start_bandb(void);
+static int closing = 0;
 
 static void bandb_parse(rb_helper *);
 static void bandb_restart_cb(rb_helper *);
@@ -71,6 +72,15 @@ init_bandb(void)
 	}
 }
 
+void
+bandb_killall(void) /* so named for consistency with ssld;
+                       there is in reality ONLY ONE bandb
+                       only to be called upon shutdown ~ellenor */
+{
+	closing = 1;
+	rb_helper_close(bandb_helper);
+	return;
+}
 
 static int
 start_bandb(void)
@@ -449,6 +459,6 @@ bandb_restart_cb(rb_helper *helper)
 		rb_helper_close(helper);
 		bandb_helper = NULL;
 	}
-	start_bandb();
+	if (!closing) start_bandb();
 	return;
 }

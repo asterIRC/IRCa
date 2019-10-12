@@ -144,6 +144,8 @@ ircd_shutdown(const char *reason)
 
 	ilog(L_MAIN, "Server Terminating. %s", reason);
 	close_logfiles();
+	ssl_killall();
+	bandb_killall();
 
 	unlink(pidFileName);
 	exit(0);
