@@ -79,6 +79,7 @@ bandb_killall(void) /* so named for consistency with ssld;
 {
 	closing = 1;
 	rb_helper_close(bandb_helper);
+	bandb_helper = NULL;
 	return;
 }
 
