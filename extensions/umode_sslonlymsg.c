@@ -49,7 +49,7 @@ checkthatuserisssl(void *vdata) {
 	hook_data_privmsg_user *Hd = (hook_data_privmsg_user*)vdata;
 
 	if (Hd->target_p->umodes & user_modes['t']) {
-		if (!IsSSLClient(Hd->source_p))
+		if (!IsSSLClient(Hd->source_p) && !IsService(Hd->source_p))
 		{
 			Hd->approved = UMODE_CALLERID;
 			Hd->whynot.mode = "t";

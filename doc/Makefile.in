@@ -74,23 +74,21 @@ install: install-mkdirs build
 		$(RM) $(DESTDIR)$(sysconfdir)/links.txt; \
 	fi
 
-	#sed -e $(printf "%s\n" "#ifdef sun" "s/%%MANSECTION%%/1M/g" "#else" "s/%%MANSECTION%%/8/g" "#endif" | $(CC) -E - | tail -n 1) ./ircd.1m
 	@echo "ircd: installing manpage"
-	@mansection=$$(printf "%s\n" "#ifdef sun" "man1mdir" "#else" "man8dir" "#endif" | $(CC) -E - | tail -n 1) \
-	if test $$mansection == man1mdir ; then \
+	@mansection=$$(printf "%s\n" "#ifdef sun" "man1mdir" "#else" "man8dir" "#endif" | $(CC) -E - | tail -n 1) ; if test $$mansection = man1mdir ; then \
 		for i in $(MANPAGES); do \
-			if test ! -f $(DESTDIR)$(mandir)/$(PROGRAM_PREFIX)$$i; then \
-			sed -e $(printf "%s\n" "#ifdef sun" "s/%%MANSECTION%%/1M/g" "#else" "s/%%MANSECTION%%/8/g" "#endif" | $(CC) -E - | tail -n 1) ./$$i > $${i}.o \
-			$(INSTALL_DATA) $${i}.o $(DESTDIR)$(man1mdir)/$(PROGRAM_PREFIX)$${i%1m}.1m; \
+			if test ! -f $(DESTDIR)$(man1mdir)/$(PROGRAM_PREFIX)$${i%.1m}.1m; then \
+				sed -e $$(printf "%s\n" "#ifdef sun" "s/%%MANSECTION%%/1M/g" "#else" "s/%%MANSECTION%%/8/g" "#endif" | $(CC) -E - | tail -n 1) ./$$i > $${i}.o; \
+				$(INSTALL_DATA) $${i}.o $(DESTDIR)$(man1mdir)/$(PROGRAM_PREFIX)$${i%.1m}.1m; \
 			fi; \
-		done \
+		done; \
 	else \
 		for i in $(MANPAGES); do \
-			if test ! -f $(DESTDIR)$(mandir)/$(PROGRAM_PREFIX)$$i; then \
-			sed -e $(printf "%s\n" "#ifdef sun" "s/%%MANSECTION%%/1M/g" "#else" "s/%%MANSECTION%%/8/g" "#endif" | $(CC) -E - | tail -n 1) ./$$i > $${i}.o \
-			$(INSTALL_DATA) $${i}.o $(DESTDIR)$(man8dir)/$(PROGRAM_PREFIX)$${i%1m}.8; \
+			if test ! -f $(DESTDIR)$(man8dir)/$(PROGRAM_PREFIX)$${i%.1m}.8; then \
+				sed -e $$(printf "%s\n" "#ifdef sun" "s/%%MANSECTION%%/1M/g" "#else" "s/%%MANSECTION%%/8/g" "#endif" | $(CC) -E - | tail -n 1) ./$$i > $${i}.o; \
+				$(INSTALL_DATA) $${i}.o $(DESTDIR)$(man8dir)/$(PROGRAM_PREFIX)$${i%.1m}.8; \
 			fi; \
-		done \
+		done; \
 	fi
 
 build:
