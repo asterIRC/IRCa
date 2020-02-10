@@ -282,11 +282,26 @@ static void
 check_new_user(void *vdata)
 {
     struct Client *source_p = (void *)vdata;
+	struct Metadata *md = user_metadata_find(client_p, "WEBIRCNAME");
+	int isweb; char *ip = malloc(HOSTIPLEN);
 
     if (IsIPSpoof(source_p)) {
         source_p->umodes &= ~user_modes['x'];
         return;
     }
+	if (md == NULL) isweb = 0;
+	else isweb = 1;
+	if (isweb) {
+		ip = rb_inet_ntop_sock(source_p->localClient->sockip, ip, HOSTIPLEN);
+		if (!strcmp("127.0.0.1", ip) || !strcmp("255.255.255.255", ip) || !strcmp("0::", ip))
+			// Don't cloak. It's an informative WebIRC address and must not be cloaked.
+		{
+	        source_p->umodes &= ~user_modes['x'];
+			source_p->localClient->mangledhost = NULL;
+			free(ip);
+			return;
+		}
+	}
     source_p->localClient->mangledhost = rb_malloc(HOSTLEN + 1);
     if (!irccmp(source_p->orighost, source_p->sockhost))
         do_host_cloak_ip(source_p->orighost, source_p->localClient->mangledhost);
