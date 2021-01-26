@@ -138,7 +138,7 @@ part_one_client(struct Client *client_p, struct Client *source_p, char *name, co
 		if (!is_delayed(msptr)) sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s PART %s :%s",
 				     source_p->name, source_p->username,
 				     source_p->host, chptr->chname, reason);
-		else sendto_one(source_p, ":%s!%s@%s PART %s :%s",
+		else if (source_p->localClient != NULL) sendto_one(source_p, ":%s!%s@%s PART %s :%s",
 				     source_p->name, source_p->username,
 				     source_p->host, chptr->chname, reason);
 	}
@@ -149,7 +149,7 @@ part_one_client(struct Client *client_p, struct Client *source_p, char *name, co
 		if (!is_delayed(msptr)) sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s PART %s",
 				     source_p->name, source_p->username,
 				     source_p->host, chptr->chname);
-		else sendto_one(source_p, ":%s!%s@%s PART %s",
+		else if (source_p->localClient != NULL) sendto_one(source_p, ":%s!%s@%s PART %s",
 				     source_p->name, source_p->username,
 				     source_p->host, chptr->chname);
 	}

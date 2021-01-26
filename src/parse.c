@@ -122,6 +122,7 @@ parse(struct Client *client_p, char *pbuffer, char *bufend)
 	struct Client *from = client_p;
 	char *sender;
 	char *ch;
+	char *fake;
 	char *s;
 	char *end;
 	int i = 1;
@@ -160,7 +161,13 @@ parse(struct Client *client_p, char *pbuffer, char *bufend)
 			if(from == NULL)
 			{
 				ServerStats.is_unpf++;
+				fake = malloc(129);
+				strncpy(fake, ch + 1, 128);
 				remove_unknown(client_p, sender, pbuffer);
+				sendto_realops_snomask(SNO_DEBUG, L_ALL,
+				     "Message: %s",
+				     fake);
+				free(fake);
 				return;
 			}
 

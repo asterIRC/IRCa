@@ -282,7 +282,7 @@ static void
 check_new_user(void *vdata)
 {
     struct Client *source_p = (void *)vdata;
-	struct Metadata *md = user_metadata_find(client_p, "WEBIRCNAME");
+	struct Metadata *md = user_metadata_find(source_p, "WEBIRCNAME");
 	int isweb; char *ip = malloc(HOSTIPLEN);
 
     if (IsIPSpoof(source_p)) {
@@ -292,14 +292,27 @@ check_new_user(void *vdata)
 	if (md == NULL) isweb = 0;
 	else isweb = 1;
 	if (isweb) {
-		ip = rb_inet_ntop_sock(source_p->localClient->sockip, ip, HOSTIPLEN);
+		rb_inet_ntop_sock((struct sockaddr *)&source_p->localClient->ip, ip, HOSTIPLEN);
 		if (!strcmp("127.0.0.1", ip) || !strcmp("255.255.255.255", ip) || !strcmp("0::", ip))
 			// Don't cloak. It's an informative WebIRC address and must not be cloaked.
 		{
+			sendto_realops_snomask(SNO_REJ, L_NETWIDE,
+				"Client is a WebIRC with an informative hostname: %s (%s@%s) [%s (sockip: %s)] [%s]",
+				source_p->name,
+				source_p->username, source_p->host,
+				source_p->sockhost, ip,
+				source_p->info);
 	        source_p->umodes &= ~user_modes['x'];
 			source_p->localClient->mangledhost = NULL;
 			free(ip);
 			return;
+		} else {
+			sendto_realops_snomask(SNO_REJ, L_NETWIDE,
+				"Client is NOT a WebIRC with an informative hostname: %s (%s@%s) [%s (ip: %s)] [%s]",
+				source_p->name,
+				source_p->username, source_p->host,
+				source_p->sockhost, ip,
+				source_p->info);
 		}
 	}
     source_p->localClient->mangledhost = rb_malloc(HOSTLEN + 1);
