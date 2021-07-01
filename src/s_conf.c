@@ -21,7 +21,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *  USA
  *
- *  $Id: s_conf.c 3550 2007-08-09 06:47:26Z nenolod $
+ *  $Id: s_conf.c 3550 2007-08-09 06:47:26Z Ariadne $
  */
 
 #include "stdinc.h"
@@ -1561,7 +1561,7 @@ clear_out_old_conf(void)
 		rb_dlinkDestroy(ptr, &service_list);
 	}
 
-	/* remove any aliases... -- nenolod */
+	/* remove any aliases... -- Ariadne */
 	if (alias_dict != NULL)
 	{
 		irc_dictionary_destroy(alias_dict, free_alias_cb, NULL);

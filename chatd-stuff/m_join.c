@@ -533,7 +533,7 @@ ms_join(struct Client *client_p, struct Client *source_p, int parc, const char *
 					     chptr->chname, modebuf, parabuf);
 		*omodebuf = *modebuf = *parabuf = '\0';
 
-		/* since we're dropping our modes, we want to clear the mlock as well. --nenolod */
+		/* since we're dropping our modes, we want to clear the mlock as well. --Ariadne */
 		set_channel_mlock(client_p, source_p, chptr, NULL, FALSE);
 	}
 
@@ -799,7 +799,7 @@ ms_sjoin(struct Client *client_p, struct Client *source_p, int parc, const char 
 		 * capitalization timestamped like modes are -- jilles */
 		strcpy(chptr->chname, parv[2]);
 
-		/* since we're dropping our modes, we want to clear the mlock as well. --nenolod */
+		/* since we're dropping our modes, we want to clear the mlock as well. --Ariadne */
 		set_channel_mlock(client_p, source_p, chptr, NULL, FALSE);
 	}
 

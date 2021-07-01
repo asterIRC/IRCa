@@ -960,7 +960,7 @@ can_join(struct Client *source_p, struct Channel *chptr, char *key, const char *
 		i = ERR_CHANNELISFULL;
 	if(chptr->mode.mode & MODE_REGONLY && EmptyString(source_p->user->suser))
 		i = ERR_NEEDREGGEDNICK;
-	/* join throttling stuff --nenolod */
+	/* join throttling stuff --Ariadne */
 	else if(chptr->mode.join_num > 0 && chptr->mode.join_time > 0)
 	{
 		if ((rb_current_time() - chptr->join_delta <= 
@@ -1329,7 +1329,7 @@ set_channel_topic(struct Channel *chptr, const char *topic, const char *topic_in
  * output       - string with simple modes
  * side effects - result from previous calls overwritten
  *
- * Stolen from ShadowIRCd 4 --nenolod
+ * Stolen from ShadowIRCd 4 --Ariadne
  */
 const char *
 channel_modes(struct Channel *chptr, struct Client *client_p)

@@ -21,7 +21,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *  USA
  *
- *  $Id: modules.c 3161 2007-01-25 07:23:01Z nenolod $
+ *  $Id: modules.c 3161 2007-01-25 07:23:01Z Ariadne $
  */
 
 #include "stdinc.h"
@@ -132,7 +132,7 @@ modules_init(void)
 	mod_add_cmd(&modlist_msgtab);
 	mod_add_cmd(&modrestart_msgtab);
 
-	/* Add the default paths we look in to the module system --nenolod */
+	/* Add the default paths we look in to the module system --Ariadne */
 	mod_add_path(MODPATH);
 	mod_add_path(AUTOMODPATH);
 }

@@ -21,7 +21,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *  USA
  *
- *  $Id: s_serv.c 3550 2007-08-09 06:47:26Z nenolod $
+ *  $Id: s_serv.c 3550 2007-08-09 06:47:26Z Ariadne $
  */
 
 #include "stdinc.h"
@@ -97,7 +97,7 @@ unsigned int CAP_BAN;
 unsigned int CAP_MLOCK;
 
 /*
- * initialize our builtin capability table. --nenolod
+ * initialize our builtin capability table. --Ariadne
  */
 void
 init_builtin_capabs(void)
@@ -834,7 +834,7 @@ server_estab(struct Client *client_p)
 
 	if(IsUnknown(client_p))
 	{
-		/* the server may be linking based on certificate fingerprint now. --nenolod */
+		/* the server may be linking based on certificate fingerprint now. --Ariadne */
 		sendto_one(client_p, "PASS %s TS %d :%s",
 			   EmptyString(server_p->spasswd) ? "*" : server_p->spasswd, TS_CURRENT, me.id);
 
@@ -1392,7 +1392,7 @@ serv_connect_callback(rb_fde_t *F, int status, void *data)
 	/* Next, send the initial handshake */
 	SetHandshake(client_p);
 
-	/* the server may be linking based on certificate fingerprint now. --nenolod */
+	/* the server may be linking based on certificate fingerprint now. --Ariadne */
 	sendto_one(client_p, "PASS %s TS %d :%s",
 		   EmptyString(server_p->spasswd) ? "*" : server_p->spasswd, TS_CURRENT, me.id);
 

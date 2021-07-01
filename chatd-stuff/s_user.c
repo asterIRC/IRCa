@@ -21,7 +21,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *  USA
  *
- *  $Id: s_user.c 3586 2007-11-20 11:16:43Z nenolod $
+ *  $Id: s_user.c 3586 2007-11-20 11:16:43Z Ariadne $
  */
 
 #include "stdinc.h"
@@ -807,7 +807,7 @@ introduce_client(struct Client *client_p, struct Client *source_p, struct User *
 	/* let modules providing usermodes know that we've got a new user,
 	 * why is this here? -- well, some modules need to be able to send out new
 	 * information about a client, so this was the best place to do it
-	 *    --nenolod
+	 *    --Ariadne
 	 */
 	hdata.client = source_p;
 	hdata.oldumodes = 0;
@@ -1352,7 +1352,7 @@ user_mode(struct Client *client_p, struct Client *source_p, int parc, const char
 		source_p->umodes &= ~UMODE_OVERRIDE;
 	}
 
-	/* let modules providing usermodes know that we've changed our usermode --nenolod */
+	/* let modules providing usermodes know that we've changed our usermode --Ariadne */
 	hdata.client = source_p;
 	hdata.oldumodes = setflags;
 	hdata.oldsnomask = setsnomask;

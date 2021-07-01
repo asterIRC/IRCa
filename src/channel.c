@@ -939,7 +939,7 @@ can_join(struct Client *source_p, struct Channel *chptr, const char *key, const 
 		i = ERR_CHANNELISFULL;
 	if(chptr->mode.mode & MODE_REGONLY && EmptyString(source_p->user->suser))
 		i = ERR_NEEDREGGEDNICK;
-	/* join throttling stuff --nenolod */
+	/* join throttling stuff --Ariadne */
 	else if(chptr->mode.join.num > 0 && chptr->mode.join.time > 0)
 	{
 		if ((rb_current_time() - chptr->join_delta <=
@@ -1311,7 +1311,7 @@ set_channel_topic(struct Channel *chptr, const char *topic, const char *topic_in
  * output       - string with simple modes
  * side effects - result from previous calls overwritten
  *
- * Stolen from ShadowIRCd 4 --nenolod
+ * Stolen from ShadowIRCd 4 --Ariadne
  */
 const char *
 channel_modes(struct Channel *chptr, struct Client *client_p)
@@ -1384,7 +1384,7 @@ channel_modes(struct Channel *chptr, struct Client *client_p)
  * the capabs combinations which are not needed are not worked out. -A1kmm
  *
  * Removed most code here because we don't need to be compatible with ircd
- * 2.8.21+CSr and stuff.  --nenolod
+ * 2.8.21+CSr and stuff.  --Ariadne
  */
 void
 send_cap_mode_changes(struct Client *client_p, struct Client *source_p,

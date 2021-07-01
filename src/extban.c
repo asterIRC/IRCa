@@ -19,7 +19,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *  USA
  *
- *  $Id: extban.c 1389 2006-05-20 19:19:00Z nenolod $
+ *  $Id: extban.c 1389 2006-05-20 19:19:00Z Ariadne $
  */
 
 #include "stdinc.h"

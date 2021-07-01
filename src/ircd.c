@@ -432,7 +432,7 @@ ircd_restart_cb(const char *str)
  * Because if ircd_die_cb() is called it's because of a fatal
  * error inside libcharybdis, and we don't know how to handle the
  * exception, so it is logical to return a FAILURE exit code here.
- *    --nenolod
+ *    --Ariadne
  */
 static void __attribute__((noreturn))
 ircd_die_cb(const char *str)

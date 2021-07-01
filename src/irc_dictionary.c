@@ -2,7 +2,7 @@
  * charybdis: an advanced ircd
  * irc_dictionary.c: Dictionary-based information storage.
  *
- * Copyright (c) 2007 William Pitcock <nenolod -at- sacredspiral.co.uk>
+ * Copyright (c) 2007 Ariadne Conill <Ariadne -at- sacredspiral.co.uk>
  * Copyright (c) 2007 Jilles Tjoelker <jilles -at- stack.nl>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -221,7 +221,7 @@ irc_dictionary_retune(struct Dictionary *dict, const char *key)
 	 * memory. otherwise the dict would become corrupted.
 	 *
  	 * n is used for temporary storage while the tree is retuned.
-	 *    -nenolod
+	 *    -Ariadne
 	 */
 	n.left = n.right = NULL;
 	left = right = &n;
@@ -718,7 +718,7 @@ struct DictionaryElement *irc_dictionary_add(struct Dictionary *dict, const char
 	delem->key = key;
 	delem->data = data;
 
-	/* TBD: is this needed? --nenolod */
+	/* TBD: is this needed? --Ariadne */
 	if (delem->key == NULL)
 	{
 		rb_bh_free(elem_heap, delem);

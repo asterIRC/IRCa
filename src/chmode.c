@@ -2053,7 +2053,7 @@ struct ChannelMode chmode_table[256] =
  * output	-
  * side effects - channel modes/memberships are changed, MODE is issued
  *
- * Extensively modified to be hotpluggable, 03/09/06 -- nenolod
+ * Extensively modified to be hotpluggable, 03/09/06 -- Ariadne
  */
 void
 set_channel_mode(struct Client *client_p, struct Client *source_p,

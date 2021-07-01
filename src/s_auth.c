@@ -21,7 +21,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *  USA
  *
- *  $Id: s_auth.c 3354 2007-04-03 09:21:31Z nenolod $ */
+ *  $Id: s_auth.c 3354 2007-04-03 09:21:31Z Ariadne $ */
 
 /*
  * Changes:
@@ -203,7 +203,7 @@ auth_dns_callback(void *vptr, struct DNSReply *reply)
         struct AuthRequest *auth = (struct AuthRequest *) vptr;
         ClearDNSPending(auth);
 
-	/* XXX: this shouldn't happen, but it does. -nenolod */
+	/* XXX: this shouldn't happen, but it does. -Ariadne */
 	if(auth->client->localClient == NULL)
 	{
 		sendto_realops_snomask(SNO_GENERAL, L_ALL,
@@ -212,7 +212,7 @@ auth_dns_callback(void *vptr, struct DNSReply *reply)
 		rb_dlinkDelete(&auth->node, &auth_poll_list);
 		free_auth_request(auth);
 
-		/* and they will silently drop through and all will hopefully be ok... -nenolod */
+		/* and they will silently drop through and all will hopefully be ok... -Ariadne */
 		return;
 	}
 
@@ -312,7 +312,7 @@ start_auth_query(struct AuthRequest *auth)
 	}
 
 	/*
-	 * TBD: this is a pointless arbitrary limit .. we either have a socket or not. -nenolod
+	 * TBD: this is a pointless arbitrary limit .. we either have a socket or not. -Ariadne
 	 */
 	if((maxconnections - 10) < rb_get_fd(F))
 	{

@@ -22,7 +22,7 @@
  * DNS server flooding lessened, AAAA-or-A lookup removed, ip6.int support
  * removed, various robustness fixes
  *
- * 2006 --jilles and nenolod
+ * 2006 --jilles and Ariadne
  *
  * Resend queries to other servers if the DNS server replies with an error or
  * an invalid response. Also, avoid servers that return errors or invalid

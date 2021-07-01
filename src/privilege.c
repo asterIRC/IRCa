@@ -2,7 +2,7 @@
  * charybdis: an advanced ircd.
  * privilege.c: Dynamic privileges API.
  *
- * Copyright (c) 2008 William Pitcock <nenolod@dereferenced.org>
+ * Copyright (c) 2008 Ariadne Conill <Ariadne@dereferenced.org>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
