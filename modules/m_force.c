@@ -32,6 +32,7 @@
 
 #include "stdinc.h"
 #include "channel.h"
+#include "chmode.h"
 #include "class.h"
 #include "client.h"
 #include "common.h"
@@ -52,6 +53,7 @@
 static int mo_forcejoin(struct Client *client_p, struct Client *source_p,
                         int parc, const char *parv[]);
 static int me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const char *parv[]);
+static int me_nsjoin(struct Client *client_p, struct Client *source_p, int parc, const char *parv[]);
 
 struct Message forcejoin_msgtab = {
     "FORCEJOIN", 0, 0, 0, MFLG_SLOW,
@@ -63,7 +65,12 @@ struct Message svsjoin_msgtab = {
     {mg_unreg, mg_not_oper, {mo_forcejoin, 3}, mg_ignore, {me_svsjoin, 3}, {mo_forcejoin, 3}}
 };
 
-mapi_clist_av1 force_clist[] = { &forcejoin_msgtab, &svsjoin_msgtab, NULL };
+struct Message nsjoin_msgtab = {
+    "NSJOIN", 0, 0, 0, MFLG_SLOW,
+    {mg_unreg, mg_not_oper, {mo_forcejoin, 3}, mg_ignore, {me_nsjoin, 3}, {mo_forcejoin, 3}}
+};
+
+mapi_clist_av1 force_clist[] = { &forcejoin_msgtab, &svsjoin_msgtab, &nsjoin_msgtab, NULL };
 
 
 static int h_can_create_channel;
@@ -77,6 +84,87 @@ mapi_hlist_av1 force_hlist[] = {
 };
 
 DECLARE_MODULE_AV1(force, NULL, NULL, force_clist, force_hlist, NULL, "$Revision$");
+
+
+/* Check what we will forward to, without sending any notices to the user
+ * -- jilles
+ */
+static struct Channel *
+check_forward(struct Client *source_p, struct Channel *chptr,
+	     char *key, int *err)
+{
+	int depth = 0, i;
+	const char *next = NULL;
+
+	/* The caller (m_join) is only interested in the reason
+	 * for the original channel.
+	 */
+	if ((*err = can_join(source_p, chptr, key, &next)) == 0)
+		return chptr;
+
+	/* User is +Q, or forwarding disabled */
+	if (IsNoForward(source_p) || !ConfigChannel.use_forward)
+		return NULL;
+
+	while (depth < 16)
+	{
+		if (next == NULL)
+			return NULL;
+		chptr = find_channel(next);
+		/* Can only forward to existing channels */
+		if (chptr == NULL)
+			return NULL;
+		/* Already on there, show original error message */
+		if (IsMember(source_p, chptr))
+			return NULL;
+		/* Juped. Sending a warning notice would be unfair */
+		if (hash_find_resv(chptr->chname))
+			return NULL;
+		/* Don't forward to +Q channel */
+		if (chptr->mode.mode & MODE_DISFORWARD)
+			return NULL;
+		i = can_join(source_p, chptr, key, &next);
+		if (i == 0)
+			return chptr;
+		depth++;
+	}
+
+	return NULL;
+}
+
+/* send_join_error()
+ *
+ * input	- client to send to, reason, channel name
+ * output	- none
+ * side effects - error message sent to client
+ */
+static void
+send_join_error(struct Client *source_p, int numeric, const char *name)
+{
+	/* This stuff is necessary because the form_str macro only
+	 * accepts constants.
+	 */
+	switch (numeric)
+	{
+#define NORMAL_NUMERIC(i)						\
+		case i:							\
+			sendto_one(source_p, form_str(i),		\
+					me.name, source_p->name, name);	\
+			break
+
+		NORMAL_NUMERIC(ERR_BANNEDFROMCHAN);
+		NORMAL_NUMERIC(ERR_INVITEONLYCHAN);
+		NORMAL_NUMERIC(ERR_BADCHANNELKEY);
+		NORMAL_NUMERIC(ERR_CHANNELISFULL);
+		NORMAL_NUMERIC(ERR_NEEDREGGEDNICK);
+		NORMAL_NUMERIC(ERR_THROTTLE);
+
+		default:
+			sendto_one_numeric(source_p, numeric,
+					"%s :Cannot join channel", name);
+			break;
+	}
+}
 
 /*
  * m_forcejoin
@@ -128,27 +216,27 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
                   source_p->name, source_p->username, source_p->host);
 
     /* select our modes from parv[2] if they exist... (chanop) */
-    if(*parv[2] == '@') {
+    if(*parv[2] == 'o') {
         type = CHFL_CHANOP;
         mode = 'o';
         sjmode = '@';
-    } else if(*parv[2] == '+') {
+    } else if(*parv[2] == 'v') {
         type = CHFL_VOICE;
         mode = 'v';
         sjmode = '+';
-    } else if(*parv[2] == '~') {
+    } else if(*parv[2] == 'q') {
         type = CHFL_MANAGER;
         mode = 'q';
         sjmode = '~';
-    } else if(*parv[2] == '*') {
+    } else if(*parv[2] == 'y') {
         type = CHFL_OPERBIZ;
         mode = 'y';
         sjmode = '~';
-    } else if(*parv[2] == '!') {
+    } else if(*parv[2] == 'a') {
         type = CHFL_SUPEROP;
         mode = 'a';
         sjmode = '&';
-    } else if(*parv[2] == '%') {
+    } else if(*parv[2] == 'h') {
         type = CHFL_HALFOP;
         mode = 'h';
         sjmode = '%';
@@ -229,7 +317,7 @@ mo_forcejoin(struct Client *client_p, struct Client *source_p, int parc, const c
 		     me.name, chptr->chname, modes);
 
 	sendto_server(NULL, chptr, CAP_TS6, NOCAPS,
-		      sjmode!=0 ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
+		      sjmode!=0 ? ":%s SJOIN %ld %s %s :%s%s" : ":%s SJOIN %ld %s %s :%s%s",
 		      me.id, (long) chptr->channelts,
 		      chptr->chname, modes, sjmode!=0 ? sjmode : "", target_p->id);
         target_p->localClient->last_join_time = rb_current_time();
@@ -294,34 +382,30 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
         return 0;
 
     /* select our modes from parv[2] if they exist... (chanop) */
-    if(*parv[2] == '@') {
+    if(*parv[2] == 'o') {
         type = CHFL_CHANOP;
         mode = 'o';
         sjmode = '@';
-    } else if(*parv[2] == '+') {
+    } else if(*parv[2] == 'v') {
         type = CHFL_VOICE;
         mode = 'v';
         sjmode = '+';
-    } else if(*parv[2] == '~') {
+    } else if(*parv[2] == 'q') {
         type = CHFL_MANAGER;
         mode = 'q';
         sjmode = '~';
-    } else if(*parv[2] == '!') {
+    } else if(*parv[2] == 'y') {
         type = CHFL_OPERBIZ;
         mode = 'y';
-        sjmode = '!';
-    } else if(*parv[2] == '&') {
+        sjmode = '~';
+    } else if(*parv[2] == 'a') {
         type = CHFL_SUPEROP;
         mode = 'a';
         sjmode = '&';
-    } else if(*parv[2] == '%') {
+    } else if(*parv[2] == 'h') {
         type = CHFL_HALFOP;
         mode = 'h';
         sjmode = '%';
-    } else if(*parv[2] == '+') {
-        type = CHFL_VOICE;
-        mode = 'v';
-        sjmode = '+';
     } else {
         type = CHFL_PEON;
         mode = sjmode = '\0';
@@ -388,6 +472,170 @@ me_svsjoin(struct Client *client_p, struct Client *source_p, int parc, const cha
 
     }
         target_p->localClient->last_join_time = rb_current_time();
+    del_invite(chptr, target_p);
+
+	if(chptr->topic != NULL)
+	{
+		sendto_one(target_p, form_str(RPL_TOPIC), me.name,
+			   target_p->name, chptr->chname, chptr->topic);
+			sendto_one(target_p, form_str(RPL_TOPICWHOTIME),
+			   me.name, target_p->name, chptr->chname,
+			   chptr->topic_info, chptr->topic_time);
+	}
+
+	channel_member_names(chptr, target_p, 1, 0);
+	hook_info.client = target_p;
+	hook_info.chptr = chptr;
+	hook_info.key = NULL;
+	call_hook(h_channel_join, &hook_info);
+    return 0;
+}
+
+/*
+ * me_nsjoin - quiet forcejoin, checks access
+ *      parv[1] = user to force
+ *      parv[2] = channel to force them into
+ *      parv[3] = channel's key
+ */
+static int
+me_nsjoin(struct Client *client_p, struct Client *source_p, int parc, const char *parv[])
+{
+    struct Client *target_p;
+    struct Channel *chptr, *chptr2;
+    int type, i;
+    char mode;
+    char sjmode;
+    char *newch, *key = NULL;
+    hook_data_channel_activity hook_info;
+
+    if(!(source_p->flags & FLAGS_SERVICE)) {
+        return 0;
+    }
+
+	if (parc > 3)
+		key = parv[3];
+
+    /* if target_p is not existant, print message
+     * to source_p and bail - scuzzy
+     */
+    if((target_p = find_client(parv[1])) == NULL) {
+        return 0;
+    }
+
+    if(!IsPerson(target_p))
+        return 0;
+
+    if(!MyClient(target_p))
+        return 0;
+
+    /* select our modes from parv[2] if they exist... (chanop) */
+    if(*parv[2] == 'o') {
+        type = CHFL_CHANOP;
+        mode = 'o';
+        sjmode = '@';
+    } else if(*parv[2] == 'v') {
+        type = CHFL_VOICE;
+        mode = 'v';
+        sjmode = '+';
+    } else if(*parv[2] == 'q') {
+        type = CHFL_MANAGER;
+        mode = 'q';
+        sjmode = '~';
+    } else if(*parv[2] == 'y') {
+        type = CHFL_OPERBIZ;
+        mode = 'y';
+        sjmode = '~';
+    } else if(*parv[2] == 'a') {
+        type = CHFL_SUPEROP;
+        mode = 'a';
+        sjmode = '&';
+    } else if(*parv[2] == 'h') {
+        type = CHFL_HALFOP;
+        mode = 'h';
+        sjmode = '%';
+    } else {
+        type = CHFL_PEON;
+        mode = sjmode = '\0';
+    }
+
+    if(mode != '\0')
+        parv[2]++;
+
+    if((chptr = find_channel(parv[2])) != NULL) {
+        if(IsMember(target_p, chptr)) {
+            /* debugging is fun... */
+            return 0;
+        }
+
+		/* If check_forward returns NULL, they couldn't join and there wasn't a usable forward channel. */
+		if(!(chptr2 = check_forward(target_p, chptr, key, &i)))
+		{
+			/* might be wrong, but is there any other better location for such?
+			 * see extensions/chm_operonly.c for other comments on this
+			 * -- dwr
+			 */
+			if(i != ERR_CUSTOM)
+				send_join_error(target_p, i, parv[2]);
+			return 0;
+		}
+		else if(chptr != chptr2)
+			sendto_one_numeric(target_p, ERR_LINKCHANNEL, form_str(ERR_LINKCHANNEL), parv[2], chptr2->chname);
+
+		chptr = chptr2;
+
+        add_user_to_channel(chptr, target_p, type);
+
+        sendto_server(NULL, chptr, NOCAPS, NOCAPS,
+                      type ? ":%s SJOIN %ld %s + :%c%s" : ":%s SJOIN %ld %s + :%s%s",
+                      me.id, (long) chptr->channelts,
+                      chptr->chname, type ? sjmode : "", target_p->id);
+
+        sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
+                             target_p->name, target_p->username,
+                             target_p->host, chptr->chname);
+
+        if(type)
+            sendto_channel_local(ALL_MEMBERS, chptr, ":%s MODE %s +%c %s",
+                                 me.name, chptr->chname, mode, target_p->name);
+    } else {
+        newch = LOCAL_COPY(parv[2]);
+        if(!check_channel_name(newch)) {
+            return 0;
+        }
+
+        /* channel name must begin with & or # */
+        if(!IsChannelName(newch)) {
+            return 0;
+        }
+
+        /* newch can't be longer than CHANNELLEN */
+        if(strlen(newch) > CHANNELLEN) {
+            return 0;
+        }
+
+        chptr = get_or_create_channel(target_p, newch, NULL);
+		chptr->channelts = rb_current_time();
+
+        add_user_to_channel(chptr, target_p, type);
+		chptr->mode.mode |= ChannelHasModes(newch) ?
+		ConfigChannel.autochanmodes :
+		ConfigChannel.modelessmodes;
+		const char *modes = channel_modes(chptr, &me);
+
+        sendto_channel_local(ALL_MEMBERS, chptr, ":%s!%s@%s JOIN :%s",
+                             target_p->name, target_p->username,
+                             target_p->host, chptr->chname);
+
+		sendto_channel_local(ONLY_CHANOPS, chptr, ":%s MODE %s %s",
+		     me.name, chptr->chname, modes);
+
+		sendto_server(NULL, chptr, CAP_TS6, NOCAPS,
+		      type ? ":%s SJOIN %ld %s %s :%c%s" : ":%s SJOIN %ld %s %s :%s%s",
+		      me.id, (long) chptr->channelts,
+		      chptr->chname, modes, type ? sjmode : "", target_p->id);
+
+    }
+    target_p->localClient->last_join_time = rb_current_time();
     del_invite(chptr, target_p);
 
 	if(chptr->topic != NULL)
