@@ -78,7 +78,7 @@ DECLARE_MODULE_AV1(ip_cloaking, _modinit, _moddeinit, NULL, NULL,
   static, char* do_ip_cloak_part (const char *part)
   inputs: part
   performs: stackalloc of 32 bytes, HMAC hash
-  outputs: 10-char display hash
+  outputs: 10-char display hash, strong pointer
  */
 static char *
 do_ip_cloak_part(const char *part)
@@ -182,7 +182,7 @@ static void
 do_host_cloak_host(const char *inbuf, char *outbuf)
 {
     unsigned char *hash;
-    char buf[3];
+    char buf[HOSTLEN+1];
     char output[HOSTLEN+1];
     int i, j;
 
@@ -195,10 +195,14 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
     oldhost = rb_strdup(inbuf);
     int hostlen = 0;
 
+    rb_strlcpy(outbuf,cloakprefix,HOSTLEN+1);
+
     for (i = 0; i < strlen(oldhost); i++) {
-        oldhost++;
+		buf[i] = oldhost[i];
         hostlen++;
-        if (*oldhost == '.') {
+        if (oldhost[i] == '.') {
+			j++;
+			buf[i] = 0;
             break;
         }
     }
@@ -209,12 +213,13 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
 //        sprintf(buf, "%.2X", hash[i%hostlen]);
 //        strcat(output,buf);
 //    }
-	
+	hash = do_ip_cloak_part(buf);
 
-    rb_strlcpy(outbuf,cloakprefix,HOSTLEN+1);
-    rb_strlcat(outbuf,output,HOSTLEN+1);
-    rb_strlcat(outbuf,oldhost,HOSTLEN+1);
+    rb_strlcat(outbuf,hash,HOSTLEN+1);
+	if (j) rb_strlcat(outbuf,".",HOSTLEN+1);
+    rb_strlcat(outbuf,oldhost + i + 1,HOSTLEN+1);
 	rb_free(oldhost);
+	rb_free(hash);
 }
 
 static void
