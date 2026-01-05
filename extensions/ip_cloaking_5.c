@@ -74,14 +74,22 @@ mapi_hfn_list_av1 ip_cloaking_hfnlist[] = {
 DECLARE_MODULE_AV1(ip_cloaking, _modinit, _moddeinit, NULL, NULL,
                    ip_cloaking_hfnlist, "$Revision: 3526 $");
 
+/*
+  static, char* do_ip_cloak_part (const char *part)
+  inputs: part
+  performs: stackalloc of 32 bytes, HMAC hash
+  outputs: 10-char display hash
+ */
 static char *
 do_ip_cloak_part(const char *part)
 {
-    unsigned char *hash;
+    unsigned char hash[EVP_MAX_MD_SIZE+1];
     char buf[32] = "";
     int i;
-    hash = HMAC(EVP_sha256(), secretsalt, strlen(secretsalt), (unsigned char*)part, strlen(part), NULL, NULL);
+    hash[EVP_MAX_MD_SIZE] = 0;
+    HMAC(EVP_sha256(), secretsalt, strlen(secretsalt), (unsigned char*)part, strlen(part), hash, NULL);
     rb_snprintf(buf, sizeof(buf), "%.2X%.2X%.2X%.2X%.2X", hash[2], hash[4], hash[6], hash[8], hash[10]);
+	// XXX CORE LEAK - should free(hash)?
     return rb_strdup(buf);
 }
 
@@ -90,10 +98,7 @@ do_ip_cloak(const char *inbuf, char *outbuf)
 {
     unsigned int a, b, c, d;
     struct in_addr in_addr;
-    char buf[512], *alpha, *beta, *gamma;
-    alpha = rb_malloc(512);
-    beta = rb_malloc(512);
-    gamma = rb_malloc(512);
+    char buf[512], alpha[32], beta[32], gamma[32];
     rb_inet_pton(AF_INET, inbuf, &in_addr);
     a = (in_addr.s_addr & 0xff000000) >> 24;
     b = (in_addr.s_addr & 0x00ff0000) >> 16;
@@ -108,15 +113,9 @@ do_ip_cloak(const char *inbuf, char *outbuf)
 static void
 do_host_cloak_ipv6(const char *inbuf, char *outbuf)
 {
-    unsigned char *a, *b, *c, *d;
-    char buf[512], *alpha, *beta, *gamma;
+    unsigned char a[64], b[64], c[64], d[64];
+    char buf[512], alpha[64], beta[64], gamma[64];
     struct in6_addr in_addr;
-    a = rb_malloc(512);
-    b = rb_malloc(512);
-    c = rb_malloc(512);
-    alpha = rb_malloc(512);
-    beta = rb_malloc(512);
-    gamma = rb_malloc(512);
     rb_inet_pton(AF_INET6, inbuf, &in_addr);
     rb_sprintf(c, "%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x.%2x%2x",
 		in_addr.s6_addr[0],
@@ -187,7 +186,7 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
     char output[HOSTLEN+1];
     int i, j;
 
-    hash = HMAC(EVP_sha256(), secretsalt, strlen(secretsalt), (unsigned char*)inbuf, strlen(inbuf), NULL, NULL);
+    //hash = HMAC(EVP_sha256(), secretsalt, strlen(secretsalt), (unsigned char*)inbuf, strlen(inbuf), NULL, NULL);
 
     output[0]=0;
 
@@ -204,15 +203,18 @@ do_host_cloak_host(const char *inbuf, char *outbuf)
         }
     }
 
-    for (i = 0; i < 61; i = i + 2) {
-        if (i >= hostlen && i >= 12) break;
-        sprintf(buf, "%.2X", hash[i]);
-        strcat(output,buf);
-    }
+//    for (i = 0; i < 61; i = i + 2) {
+        // if (i >= hostlen && i >= 12) break; // which numbnuts came up with this?
+//        if (i >= hostlen && i >= 12) break;
+//        sprintf(buf, "%.2X", hash[i%hostlen]);
+//        strcat(output,buf);
+//    }
+	
 
     rb_strlcpy(outbuf,cloakprefix,HOSTLEN+1);
     rb_strlcat(outbuf,output,HOSTLEN+1);
     rb_strlcat(outbuf,oldhost,HOSTLEN+1);
+	rb_free(oldhost);
 }
 
 static void
